@@ -43,6 +43,7 @@
 		<module>tools/lightflare-playwright</module>
 		<module>tools/lightflare-openmeteo</module>
 		<module>tools/lightflare-brave-search</module>
+		<module>tools/lightflare-httpclient</module>
 		<module>llmproviders/lightflare-llmprovider-core</module>
 		<module>llmproviders/lightflare-ollama</module>
 		<module>llmproviders/lightflare-openai</module>
