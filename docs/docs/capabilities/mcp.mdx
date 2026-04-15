@@ -1,0 +1,54 @@
+---
+sidebar_position: 5
+---
+
+# MCP
+
+## Overview
+
+MCP lets Lightflare connect to external tool servers that speak the Model Context Protocol. This is how you can add tools without building them directly into Lightflare.
+
+An MCP server can provide tools for systems such as files, source control, browsers, databases, SaaS APIs, or internal services. Once connected, those tools become available to the agent alongside built-in tools.
+
+Lightflare supports three MCP connection styles:
+
+- `stdio` for local command-based MCP servers.
+- `streamable-http` for HTTP MCP servers.
+- `sse` for SSE-based MCP servers.
+
+At a high level, MCP works like this:
+
+1. You configure one or more named MCP servers.
+2. Lightflare connects to the enabled servers.
+3. Available MCP tools are discovered.
+4. The agent sees those tools as part of its available tool catalog.
+5. When a user request needs one of those capabilities, the agent can call the matching MCP tool.
+
+The server name matters because it identifies where a tool came from. If two integrations expose similar tool names, the integration identity helps keep them understandable.
+
+If an MCP server is disabled, misconfigured, or unavailable, its tools are not available to the agent. The agent can only plan with tools that are present in the current run.
+
+## Properties
+
+### Required Properties
+
+Required properties depend on the transport:
+
+| Transport | Required properties |
+| --- | --- |
+| `stdio` | `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_COMMAND` |
+| `streamable-http` | `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_URL` |
+| `sse` | `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_URL` |
+
+Use the normalized server name in the environment variable. For example, a server named `github-tools` maps to `LIGHTFLARE_MCP_SERVERS_GITHUB_TOOLS_*`.
+
+### Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_ENABLED` | `true` | Enable or disable a configured server. |
+| `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_TRANSPORT` | `stdio` | MCP transport: `stdio`, `streamable-http`, or `sse`. |
+| `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_ARGS` | `[]` | Stdio command arguments. |
+| `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_ENV_<KEY>` | `{}` | Stdio process environment variables. |
+| `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_ENDPOINT` | `/mcp` | Streamable HTTP endpoint. |
+| `LIGHTFLARE_MCP_SERVERS_<SERVER_NAME>_SSE_ENDPOINT` | `/sse` | SSE endpoint. |

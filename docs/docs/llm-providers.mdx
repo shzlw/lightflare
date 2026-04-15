@@ -1,0 +1,22 @@
+---
+sidebar_position: 3
+---
+
+# LLM Providers
+
+Lightflare requires one configured LLM provider. Pick OpenAI, Ollama, or OpenRouter, then configure the provider-specific properties for that provider.
+
+## Providers
+
+- [OpenAI](./llm-providers/openai)
+- [Ollama](./llm-providers/ollama)
+- [OpenRouter](./llm-providers/openrouter)
+
+OpenRouter is useful when you want model routing through OpenRouter while keeping Lightflare's provider interface, memory embeddings, tools, and scheduling behavior unchanged.
+
+## Shared Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_LLM_PROVIDER` | `openai` | Active provider. Supported values are `openai`, `ollama`, and `openrouter`. |
+| `LIGHTFLARE_LLM_MAX_OUTPUT_TOKENS` | `1024` | Max output tokens. |

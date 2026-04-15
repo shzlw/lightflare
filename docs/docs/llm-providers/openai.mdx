@@ -1,0 +1,25 @@
+---
+sidebar_position: 1
+---
+
+# OpenAI
+
+Configure OpenAI when `LIGHTFLARE_LLM_PROVIDER` is set to `openai`.
+
+## Required Properties
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_LLM_PROVIDER` | Set to `openai`. |
+| `LIGHTFLARE_LLM_OPENAI_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_LLM_OPENAI_API_KEY` | OpenAI API key. |
+
+## Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_LLM_OPENAI_MODEL` | `gpt-5.4-nano` | OpenAI model name. |
+| `LIGHTFLARE_LLM_OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model name. |
+| `LIGHTFLARE_LLM_OPENAI_REASONING_EFFORT` | empty | Optional reasoning effort for reasoning-capable OpenAI models. Supported values include `none`, `minimal`, `low`, `medium`, `high`, and `xhigh`. |
+| `LIGHTFLARE_LLM_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI API base URL. |
+| `LIGHTFLARE_LLM_OPENAI_EMBEDDING_DIMENSIONS` | `1536` | Embedding vector dimensions. |

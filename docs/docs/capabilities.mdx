@@ -1,0 +1,53 @@
+---
+sidebar_position: 3
+---
+
+# Capabilities
+
+## Overview
+
+Lightflare includes several built-in capabilities that work together to run useful agents:
+
+- Memory keeps reusable context across chats, users, sessions, and uploaded documents.
+- Chat provides the interactive conversation experience and streams progress while the agent works.
+- Agent execution plans work, calls tools, adapts after results, and produces the final answer.
+- Scheduling lets agent work run later or repeatedly without a user sitting in chat.
+- MCP connects Lightflare to external tool servers.
+- Logging controls how operational events are emitted for local development or production systems.
+
+Each capability page explains what the feature supports, how it behaves at a high level, and which settings control it.
+
+## Properties
+
+Spring Boot supports relaxed binding, so any property can be overridden with an uppercase environment variable where dots and dashes become underscores.
+
+Example:
+
+```text
+lightflare.llm.max-output-tokens
+```
+
+becomes:
+
+```text
+LIGHTFLARE_LLM_MAX_OUTPUT_TOKENS
+```
+
+### Auth
+
+Bootstrap superadmin properties are required only while creating the first superadmin user:
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME` | Bootstrap superadmin username. |
+| `LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL` | Bootstrap superadmin email. |
+| `LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD` | Bootstrap superadmin password. |
+
+Optional auth properties:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_AUTH_COOKIE_SECURE` | `false` | Set secure auth cookies. |
+| `LIGHTFLARE_AUTH_COOKIE_SAME_SITE` | `Lax` | Auth cookie SameSite mode. |
+
+Use the capability pages in this section for memory, chat, agent execution, scheduling, MCP, and logging settings.

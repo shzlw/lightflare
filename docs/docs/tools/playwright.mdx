@@ -1,0 +1,43 @@
+---
+sidebar_position: 3
+---
+
+# Playwright
+
+Playwright adds rendered web page extraction for pages that need browser execution before their content can be read.
+
+## Tools
+
+| Tool | Purpose |
+| --- | --- |
+| `web-page-content-extractor` | Fetch a web page and extract its main text content. |
+
+### `web-page-content-extractor` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `url` | yes | HTTP or HTTPS URL to fetch. |
+
+## Properties
+
+Required Playwright properties:
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_ENABLED_TOOLS` | Comma-separated tool allowlist. Use `web-page-content-extractor`. |
+
+### Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_ENABLED_TOOLS` | `[]` | Exposed Playwright tools. Empty exposes no Playwright tools. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_WORKER_COUNT` | `2` | Playwright worker count. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_MAX_PENDING_TASKS_PER_WORKER` | `8` | Max queued Playwright tasks per worker. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_QUEUE_ACQUIRE_TIMEOUT_MS` | `1000` | Playwright queue acquire timeout. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_PAGE_TIMEOUT_MS` | `10000` | Playwright page timeout. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_HEADLESS` | `true` | Run Playwright headless. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_ACCEPT_DOWNLOADS` | `false` | Allow Playwright downloads. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_BLOCK_PRIVATE_NETWORK_TARGETS` | `true` | Block private network browser targets. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_ALLOWED_SCHEMES` | `http,https` | Allowed URL schemes. |
+| `LIGHTFLARE_TOOLS_PLAYWRIGHT_ALLOWED_HOSTS` | `[]` | Host allowlist. Empty allows all hosts permitted by the URL policy. |

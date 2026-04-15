@@ -1,0 +1,49 @@
+---
+sidebar_position: 3
+---
+
+# OpenRouter
+
+Configure OpenRouter when `LIGHTFLARE_LLM_PROVIDER` is set to `openrouter`.
+
+The OpenRouter provider uses the OpenRouter chat completions API for structured responses and the embeddings API for memory embeddings.
+
+## Required Properties
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_LLM_PROVIDER` | Set to `openrouter`. |
+| `LIGHTFLARE_LLM_OPENROUTER_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_LLM_OPENROUTER_API_KEY` | OpenRouter API key. |
+
+## Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_LLM_OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter API base URL. |
+| `LIGHTFLARE_LLM_OPENROUTER_MODEL` | `openai/gpt-4.1-nano` | Model used for chat completions. |
+| `LIGHTFLARE_LLM_OPENROUTER_EMBEDDING_MODEL` | `openai/text-embedding-3-small` | Model used for embeddings. |
+| `LIGHTFLARE_LLM_OPENROUTER_MAX_COMPLETION_TOKENS` | `LIGHTFLARE_LLM_MAX_OUTPUT_TOKENS` | Max chat completion tokens. |
+| `LIGHTFLARE_LLM_OPENROUTER_TEMPERATURE` | empty | Optional sampling temperature. |
+| `LIGHTFLARE_LLM_OPENROUTER_TOP_P` | empty | Optional nucleus sampling value. |
+| `LIGHTFLARE_LLM_OPENROUTER_SEED` | empty | Optional generation seed. |
+| `LIGHTFLARE_LLM_OPENROUTER_USER` | empty | Optional stable user identifier sent to OpenRouter. |
+| `LIGHTFLARE_LLM_OPENROUTER_PROVIDER` | empty | Optional OpenRouter provider routing preferences as a map-style Spring property. |
+| `LIGHTFLARE_LLM_OPENROUTER_EMBEDDING_DIMENSIONS` | empty | Optional embedding dimensions when supported by the selected model/provider. |
+| `LIGHTFLARE_LLM_OPENROUTER_EMBEDDING_ENCODING_FORMAT` | empty | Optional embedding encoding format. |
+| `LIGHTFLARE_LLM_OPENROUTER_EMBEDDING_INPUT_TYPE` | empty | Optional embedding input type. |
+| `LIGHTFLARE_LLM_OPENROUTER_EMBEDDING_PROVIDER` | empty | Optional embedding provider routing preferences as a map-style Spring property. |
+| `LIGHTFLARE_LLM_OPENROUTER_HTTP_REFERER` | empty | Optional `HTTP-Referer` header for OpenRouter rankings and analytics. |
+| `LIGHTFLARE_LLM_OPENROUTER_TITLE` | empty | Optional `X-OpenRouter-Title` header. |
+| `LIGHTFLARE_LLM_OPENROUTER_CATEGORIES` | empty | Optional `X-OpenRouter-Categories` header. |
+
+## Example
+
+```bash
+LIGHTFLARE_LLM_PROVIDER=openrouter \
+LIGHTFLARE_LLM_OPENROUTER_ENABLED=true \
+LIGHTFLARE_LLM_OPENROUTER_API_KEY='replace-this-key' \
+LIGHTFLARE_LLM_OPENROUTER_MODEL='openai/gpt-4.1-nano' \
+LIGHTFLARE_LLM_OPENROUTER_EMBEDDING_MODEL='openai/text-embedding-3-small' \
+docker compose up --build
+```

@@ -1,0 +1,57 @@
+---
+sidebar_position: 4
+---
+
+# Brave Search
+
+Brave Search is optional. It registers the `web-search` tool, which searches the web through the Brave Search API and returns web results with titles, URLs, snippets, page age, and optional extra snippets.
+
+## Tools
+
+| Tool | Purpose |
+| --- | --- |
+| `web-search` | Search the web and return current results with titles, URLs, snippets, and page age. |
+
+### `web-search` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `query` | yes | Search query. |
+| `count` | no | Result count from `1` to `20`. |
+| `offset` | no | Result page offset from `0` to `9`. |
+| `freshness` | no | Freshness filter. Use `pd`, `pw`, `pm`, `py`, or a custom range like `2026-01-01to2026-01-31`. |
+| `country` | no | Two-character country code. |
+| `search_lang` | no | Search result language code. |
+| `ui_lang` | no | Response UI language, such as `en-US`. |
+| `safesearch` | no | SafeSearch mode: `off`, `moderate`, or `strict`. |
+| `extra_snippets` | no | Request extra snippets for each result. |
+
+## Required Properties
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_ENABLED_TOOLS` | Comma-separated tool allowlist. Use `web-search`. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_API_KEY` | Brave Search API key. |
+
+## Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_ENABLED_TOOLS` | `[]` | Exposed Brave Search tools. Empty exposes no Brave Search tools. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_BASE_URL` | `https://api.search.brave.com` | Brave Search API base URL. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_COUNTRY` | `US` | Default search result country. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_SEARCH_LANG` | `en` | Default search result language. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_UI_LANG` | `en-US` | Default response UI language. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_SAFESEARCH` | `moderate` | Default SafeSearch mode. Supported values are `off`, `moderate`, and `strict`. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_DEFAULT_COUNT` | `5` | Default web result count. The service caps this at Brave's maximum of `20`. |
+| `LIGHTFLARE_TOOLS_BRAVE_SEARCH_EXTRA_SNIPPETS` | `false` | Request extra snippets from Brave Search by default. |
+
+## Example
+
+```bash
+LIGHTFLARE_TOOLS_BRAVE_SEARCH_ENABLED=true \
+LIGHTFLARE_TOOLS_BRAVE_SEARCH_ENABLED_TOOLS=web-search \
+LIGHTFLARE_TOOLS_BRAVE_SEARCH_API_KEY='replace-this-key' \
+docker compose up --build
+```

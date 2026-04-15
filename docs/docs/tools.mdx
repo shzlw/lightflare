@@ -1,0 +1,24 @@
+---
+sidebar_position: 4
+---
+
+# Tools
+
+Lightflare runs approved tools from one server-side environment instead of each user's local machine. Tool credentials and access are managed centrally.
+
+## Integrations
+
+Tools are grouped by integration. Enable an integration first, then allow the specific tools that should be exposed to the agent.
+
+- [Slack](./tools/slack): collaboration and messaging.
+- [OpenMeteo](./tools/openmeteo): weather forecasts and geocoding.
+- [Playwright](./tools/playwright): rendered web page extraction.
+- [Brave Search](./tools/brave-search): current web search.
+
+Built-in scheduler tools are documented with the [Scheduling](./capabilities/scheduling) capability.
+
+## MCP Tools
+
+MCP servers can add tools dynamically. MCP tool names are qualified by server so the agent can distinguish tools from different external integrations.
+
+Use the integration-specific pages to configure required credentials, allowlists, and runtime settings.

@@ -1,0 +1,46 @@
+---
+sidebar_position: 1
+---
+
+# Slack
+
+Slack adds collaboration and messaging capabilities. It can listen for Slack app events and expose approved Slack actions as agent tools.
+
+## Tools
+
+| Tool | Purpose |
+| --- | --- |
+| `post-message` | Post a message to an allowed Slack channel. |
+
+### `post-message` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `channel` | yes | Slack channel ID or allowed channel name. |
+| `text` | yes | Message text to post. |
+| `thread_ts` | no | Slack thread timestamp when replying in a thread. |
+
+## Properties
+
+Required Slack properties:
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_TOOLS_SLACK_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_TOOLS_SLACK_ENABLED_TOOLS` | Comma-separated tool allowlist. Use `post-message` to expose Slack posting as a callable tool. |
+| `LIGHTFLARE_TOOLS_SLACK_BOT_TOKEN` | Slack bot token. |
+| `LIGHTFLARE_TOOLS_SLACK_APP_TOKEN` | Slack app-level token for Socket Mode. |
+| `LIGHTFLARE_TOOLS_SLACK_SIGNING_SECRET` | Slack signing secret. |
+
+### Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_TOOLS_SLACK_ENABLED_TOOLS` | `[]` | Exposed Slack tools. Empty keeps Slack messaging enabled without exposing Slack callable tools. |
+| `LIGHTFLARE_TOOLS_SLACK_REPLY_IN_THREAD` | `true` | Reply to Slack mentions in threads. |
+| `LIGHTFLARE_TOOLS_SLACK_ALLOWED_TEAM_IDS` | `[]` | Team ID allowlist. Empty allows all teams. |
+| `LIGHTFLARE_TOOLS_SLACK_ALLOWED_MENTION_CHANNELS` | `[]` | Channel allowlist for mentions. Empty allows all channels. |
+| `LIGHTFLARE_TOOLS_SLACK_ALLOWED_POST_CHANNELS` | `[]` | Channel allowlist for posting. Empty allows all channels. |
+| `LIGHTFLARE_TOOLS_SLACK_AGENT_EXECUTOR_CORE_POOL_SIZE` | `2` | Slack agent executor core pool size. |
+| `LIGHTFLARE_TOOLS_SLACK_AGENT_EXECUTOR_MAX_POOL_SIZE` | `4` | Slack agent executor max pool size. |
+| `LIGHTFLARE_TOOLS_SLACK_AGENT_EXECUTOR_QUEUE_CAPACITY` | `100` | Slack agent executor queue capacity. |

@@ -1,0 +1,47 @@
+---
+sidebar_position: 2
+---
+
+# OpenMeteo
+
+OpenMeteo adds weather and location lookup capabilities.
+
+## Tools
+
+| Tool | Purpose |
+| --- | --- |
+| `geocoding` | Resolve a location name into latitude and longitude coordinates. |
+| `weather-forecast` | Get current weather and a multi-day forecast for coordinates. |
+
+### `geocoding` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `location` | yes | Location name to resolve. |
+| `country_code` | no | Two-letter country code to narrow ambiguous matches. |
+
+### `weather-forecast` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `latitude` | yes | Latitude coordinate. |
+| `longitude` | yes | Longitude coordinate. |
+| `forecast_days` | no | Number of forecast days. Defaults to the configured forecast length. |
+
+## Properties
+
+Required OpenMeteo properties:
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_TOOLS_OPENMETEO_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_TOOLS_OPENMETEO_ENABLED_TOOLS` | Comma-separated tool allowlist. Use `weather-forecast`, `geocoding`, or both. |
+
+### Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_TOOLS_OPENMETEO_ENABLED_TOOLS` | `[]` | Exposed OpenMeteo tools. Empty exposes no OpenMeteo tools. |
+| `LIGHTFLARE_TOOLS_OPENMETEO_GEOCODING_BASE_URL` | `https://geocoding-api.open-meteo.com` | Geocoding API base URL. |
+| `LIGHTFLARE_TOOLS_OPENMETEO_FORECAST_BASE_URL` | `https://api.open-meteo.com` | Forecast API base URL. |
+| `LIGHTFLARE_TOOLS_OPENMETEO_DEFAULT_FORECAST_DAYS` | `3` | Default forecast length. |

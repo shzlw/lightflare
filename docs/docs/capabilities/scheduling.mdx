@@ -1,0 +1,49 @@
+---
+sidebar_position: 4
+---
+
+# Scheduling
+
+## Overview
+
+Scheduling lets Lightflare run work later or repeatedly without a user keeping a chat open. It is useful for reminders, periodic checks, recurring reports, and automated agent tasks.
+
+A scheduled task includes:
+
+- What kind of task should run.
+- The payload or instructions for that task.
+- Whether the task is enabled.
+- When it should run next.
+- Enough execution state to avoid duplicate work.
+
+At a high level, scheduling works like this:
+
+1. A task is created with a next run time.
+2. Lightflare periodically checks for due tasks.
+3. Due tasks are claimed before execution so another worker does not run the same task at the same time.
+4. The task runs in the background.
+5. Successful recurring tasks get their next run time moved forward.
+6. Failed tasks are recorded and can be retried or inspected depending on their state.
+
+Scheduled agent tasks use the same agent behavior as chat: they can use memory, tools, and skills, but they run from a schedule instead of a live user message.
+
+Scheduling includes built-in tools that let the agent manage scheduled tasks.
+
+| Tool | Purpose |
+| --- | --- |
+| `create-task` | Create a scheduled task from task details and a Spring cron expression. |
+| `list-tasks` | List scheduled tasks ordered by next run time. |
+| `delete-task` | Delete a scheduled task by ID. |
+
+The scheduler settings control how often due tasks are checked, how many tasks are claimed at once, how long a claim lasts, and how many scheduled tasks can run concurrently.
+
+## Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_SCHEDULER_POLL_INTERVAL_MS` | `60000` | Scheduler polling interval. |
+| `LIGHTFLARE_SCHEDULER_BATCH_SIZE` | `20` | Scheduler batch size. |
+| `LIGHTFLARE_SCHEDULER_LEASE_DURATION_SECONDS` | `300` | Scheduler lease duration. |
+| `LIGHTFLARE_SCHEDULER_EXECUTOR_CORE_POOL_SIZE` | `4` | Scheduler executor core pool size. |
+| `LIGHTFLARE_SCHEDULER_EXECUTOR_MAX_POOL_SIZE` | `8` | Scheduler executor max pool size. |
+| `LIGHTFLARE_SCHEDULER_EXECUTOR_QUEUE_CAPACITY` | `100` | Scheduler executor queue capacity. |

@@ -1,0 +1,15 @@
+.git
+.idea
+.vscode
+.DS_Store
+
+**/target
+**/node_modules
+**/dist
+
+*.log
+*.jar
+*.war
+*.zip
+
+server/lightflare-app/src/main/resources/static

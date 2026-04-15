@@ -1,0 +1,24 @@
+---
+sidebar_position: 6
+---
+
+# Logging
+
+## Overview
+
+Logging helps operators understand what Lightflare is doing. It records application startup, agent execution, tool activity, scheduling, memory work, and errors.
+
+There are two common modes:
+
+- Plain text logs for local development and quick debugging.
+- JSON logs for production systems that collect and search logs automatically.
+
+JSON logs are useful when Lightflare runs in Docker, Kubernetes, or another environment where logs are shipped to a centralized system. They make it easier to filter by timestamp, level, logger, and message.
+
+Changing the log format does not change application behavior. It only changes how operational events are written.
+
+## Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_JSON_LOGS` | `false` | When using `start.sh`, set to `true`, `TRUE`, `1`, `yes`, or `YES` to enable JSON logs. |

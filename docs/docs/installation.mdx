@@ -1,0 +1,135 @@
+---
+sidebar_position: 2
+---
+
+# Installation
+
+## Getting Started
+
+Start the stack:
+
+```bash
+docker compose up --build
+```
+
+Open the app:
+
+```text
+http://localhost:8066
+```
+
+Log in with the bootstrap superadmin account:
+
+```text
+username: <your bootstrap superadmin username>
+password: <your bootstrap superadmin password>
+```
+
+Change the superadmin password after first login.
+
+Set the bootstrap superadmin credentials before first login:
+
+```bash
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME=<superadmin-username> \
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL=admin@example.com \
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD='<superadmin-password>' \
+docker compose up --build
+```
+
+## Run With Docker Compose
+
+```bash
+docker compose up --build
+```
+
+The app is available at:
+
+```text
+http://localhost:8066
+```
+
+Compose starts:
+
+- `app`: the Lightflare Spring Boot server with the web UI packaged into the jar.
+- `postgres`: PostgreSQL 17 with pgvector, initialized from `postgres/init`.
+
+To reset the local database volume:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+## Build From Source
+
+Use the source build when you want to run Lightflare outside Docker or validate a local change before building an image.
+
+Prerequisites:
+
+- Java 25
+- Maven 3.9 or newer
+- Node.js 25 or newer
+- PostgreSQL 17 with pgvector enabled
+
+Build the web UI and server jar:
+
+```bash
+./build.sh
+```
+
+The build script:
+
+1. Installs web UI dependencies with `npm ci`.
+2. Builds the web UI.
+3. Places the web UI static assets into the Spring Boot app resources.
+4. Builds the server jar with Maven.
+
+The output jar is:
+
+```text
+server/lightflare-app/target/lightflare-app-1.0.jar
+```
+
+Start the local build with the provided local environment script:
+
+```bash
+./start-local.sh
+```
+
+Or build and start in one command:
+
+```bash
+./build-local.sh run
+```
+
+For a manual build, run the same steps directly:
+
+```bash
+cd webui
+npm ci
+npm run build
+cd ..
+rm -rf server/lightflare-app/src/main/resources/static
+mkdir -p server/lightflare-app/src/main/resources/static
+cp -R webui/dist/. server/lightflare-app/src/main/resources/static/
+cd server
+mvn -q -pl lightflare-app -am package
+```
+
+## Required Database Variables
+
+Configure the application with a PostgreSQL database:
+
+| Variable | Description |
+| --- | --- |
+| `SPRING_DATASOURCE_URL` | JDBC URL for PostgreSQL. |
+| `SPRING_DATASOURCE_USERNAME` | PostgreSQL username used by the app. |
+| `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password used by the app. |
+
+If you run PostgreSQL through Docker Compose, configure the database container with matching values:
+
+| Variable | Description |
+| --- | --- |
+| `POSTGRES_DB` | Database created by the Postgres container. |
+| `POSTGRES_USER` | Database user created by the Postgres container. |
+| `POSTGRES_PASSWORD` | Database password created by the Postgres container. |

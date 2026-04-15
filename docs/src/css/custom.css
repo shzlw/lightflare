@@ -1,0 +1,101 @@
+:root {
+  --ifm-color-primary: #171717;
+  --ifm-color-primary-dark: #000000;
+  --ifm-color-primary-darker: #000000;
+  --ifm-color-primary-darkest: #000000;
+  --ifm-color-primary-light: #262626;
+  --ifm-color-primary-lighter: #404040;
+  --ifm-color-primary-lightest: #525252;
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-family-base: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ifm-heading-font-family: var(--ifm-font-family-base);
+  --ifm-font-color-base: #171717;
+  --ifm-color-content-secondary: #737373;
+  --ifm-border-color: #e5e5e5;
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-navbar-link-color: #171717;
+  --ifm-footer-background-color: #ffffff;
+  --ifm-footer-color: #525252;
+  --ifm-footer-link-color: #171717;
+  --ifm-link-color: #171717;
+  --ifm-menu-color-active: #171717;
+  --ifm-menu-color-background-active: #f5f5f5;
+  --ifm-menu-color-background-hover: #f5f5f5;
+  --ifm-toc-border-color: #e5e5e5;
+  --ifm-table-border-color: #e5e5e5;
+  --ifm-table-stripe-background: #fafafa;
+  --ifm-code-background: #f5f5f5;
+  --ifm-code-font-size: 95%;
+  --ifm-global-radius: 8px;
+  --ifm-button-border-radius: 8px;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #f5f5f5;
+  --ifm-color-primary-dark: #e5e5e5;
+  --ifm-color-primary-darker: #d4d4d4;
+  --ifm-color-primary-darkest: #a3a3a3;
+  --ifm-color-primary-light: #fafafa;
+  --ifm-color-primary-lighter: #ffffff;
+  --ifm-color-primary-lightest: #ffffff;
+  --ifm-background-color: #171717;
+  --ifm-background-surface-color: #262626;
+  --ifm-font-color-base: #f5f5f5;
+  --ifm-color-content-secondary: #a3a3a3;
+  --ifm-border-color: rgba(255, 255, 255, 0.1);
+  --ifm-navbar-background-color: #171717;
+  --ifm-navbar-link-color: #f5f5f5;
+  --ifm-footer-background-color: #171717;
+  --ifm-footer-color: #d4d4d4;
+  --ifm-footer-link-color: #f5f5f5;
+  --ifm-link-color: #f5f5f5;
+  --ifm-menu-color-active: #f5f5f5;
+  --ifm-menu-color-background-active: #262626;
+  --ifm-menu-color-background-hover: #262626;
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.1);
+  --ifm-table-border-color: rgba(255, 255, 255, 0.1);
+  --ifm-table-stripe-background: #202020;
+  --ifm-code-background: #262626;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+.navbar {
+  border-bottom: 1px solid var(--ifm-border-color);
+  box-shadow: none;
+}
+
+.navbar__logo img {
+  border-radius: 8px;
+}
+
+.header-github-link::before {
+  background-color: var(--ifm-navbar-link-color);
+  content: "";
+  display: flex;
+  height: 24px;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z'/%3E%3C/svg%3E") no-repeat center;
+  width: 24px;
+}
+
+.header-github-link:hover::before {
+  background-color: var(--ifm-color-primary);
+}
+
+.footer {
+  border-top: 1px solid var(--ifm-border-color);
+}
+
+.button {
+  border-radius: 8px;
+}
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--ifm-border-color);
+}
+
+.theme-doc-markdown a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}

@@ -1,0 +1,24 @@
+---
+sidebar_position: 2
+---
+
+# Ollama
+
+Configure Ollama when `LIGHTFLARE_LLM_PROVIDER` is set to `ollama`.
+
+## Required Properties
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_LLM_PROVIDER` | Set to `ollama`. |
+| `LIGHTFLARE_LLM_OLLAMA_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_LLM_OLLAMA_MODEL` | Ollama model name used for generation. |
+
+## Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_LLM_OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama base URL. |
+| `LIGHTFLARE_LLM_OLLAMA_API_KEY` | empty | Optional bearer token for remote or proxied Ollama APIs. |
+| `LIGHTFLARE_LLM_OLLAMA_EMBEDDING_MODEL` | same as `LIGHTFLARE_LLM_OLLAMA_MODEL` | Ollama model used for embeddings. |
+| `LIGHTFLARE_LLM_OLLAMA_EMBEDDING_DIMENSIONS` | `1536` | Embedding vector dimensions. |
