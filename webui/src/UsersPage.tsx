@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Users, Search, Plus, Trash2, Edit3, Save, X, Lock, Shield, ChevronLeft, ChevronRight, User as UserIcon } from 'lucide-react'
+import { Search, Plus, Trash2, Edit3, Save, X, Lock, Shield, ChevronLeft, ChevronRight, User as UserIcon } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -462,7 +462,6 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
     <div className="w-full max-w-7xl mx-auto space-y-8 p-6 md:p-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-2 mb-8">
         <div className="flex items-center gap-3">
-          <Users className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold tracking-tight text-foreground">User Management</h2>
         </div>
       </header>

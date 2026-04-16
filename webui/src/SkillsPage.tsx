@@ -31,7 +31,7 @@ import { request } from '@/lib/api'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Trash2, Edit3, Save, Zap, Clock, User, Globe, Database, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, Trash2, Edit3, Save, Clock, User, Globe, Database, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -271,7 +271,6 @@ export default function SkillsPage() {
     <div className="w-full max-w-7xl mx-auto space-y-8 p-6 md:p-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-2 mb-8">
         <div className="flex items-center gap-3">
-          <Zap className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Skills</h2>
         </div>
       </header>

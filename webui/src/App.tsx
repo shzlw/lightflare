@@ -7,7 +7,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -71,7 +70,6 @@ function WorkspaceLayout({ currentUser }: { currentUser: AuthUser | null }) {
 
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Platform</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {menuItems.map((item) => (

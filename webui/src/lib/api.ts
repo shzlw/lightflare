@@ -70,7 +70,16 @@ export async function request<T>(input: RequestInfo, init?: RequestInit): Promis
   })
 
   if (!response.ok) {
-    const message = await response.text()
+    const text = await response.text()
+    let message = text
+    try {
+      const json = JSON.parse(text)
+      if (json.message) {
+        message = json.message
+      }
+    } catch {
+      // Not JSON, use raw text
+    }
     throw new Error(message || `Request failed with status ${response.status}`)
   }
 
@@ -98,7 +107,16 @@ export async function streamRequest<T>(
   })
 
   if (!response.ok) {
-    const message = await response.text()
+    const text = await response.text()
+    let message = text
+    try {
+      const json = JSON.parse(text)
+      if (json.message) {
+        message = json.message
+      }
+    } catch {
+      // Not JSON, use raw text
+    }
     throw new Error(message || `Request failed with status ${response.status}`)
   }
 

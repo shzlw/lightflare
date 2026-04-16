@@ -7,7 +7,7 @@ import { fetchCurrentUser, logout, type AuthUser, updatePassword } from '@/lib/a
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
 import { Skeleton } from '@/components/ui/skeleton'
-import { User, RefreshCw, LogOut, ShieldAlert, KeyRound, Mail, Fingerprint, Shield, ShieldCheck, AlertCircle, UserCircle } from 'lucide-react'
+import { User, RefreshCw, LogOut, ShieldAlert, KeyRound, Mail, Fingerprint, Shield, ShieldCheck, AlertCircle } from 'lucide-react'
 function formatValue(value: string | null | undefined) {
   return value && value.trim() ? value : 'Not set'
 }
@@ -87,7 +87,6 @@ export default function UserInfoPage({ currentUser, onUserChange }: UserInfoPage
     <div className="w-full max-w-7xl mx-auto space-y-8 p-6 md:p-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-2 mb-8">
         <div className="flex items-center gap-3">
-          <UserCircle className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold tracking-tight text-foreground">User Profile</h2>
         </div>
       </header>

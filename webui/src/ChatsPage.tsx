@@ -28,7 +28,7 @@ import {
 import { request, streamRequest } from '@/lib/api'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
-import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, MessageSquare, Brain, ListTodo, Play, CheckCircle2, Zap, AlertCircle, Terminal, FileText, Loader2, Info } from 'lucide-react'
+import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, Brain, ListTodo, Play, CheckCircle2, Zap, AlertCircle, Terminal, FileText, Loader2, Info } from 'lucide-react'
 
 type ChatSession = {
   id: string
@@ -687,7 +687,7 @@ export default function ChatsPage() {
         )
       case 'step_progress':
         return (
-          <div className="flex items-start gap-3 py-0.5 px-1 ml-0.5 border-l-2 border-border/20 pl-6 my-1">
+          <div className="flex items-start gap-3 py-0.5 px-1 ml-0.5 border-l-2 border-border/20 pl-4 my-1">
             <div className="h-3.5 w-3.5 flex items-center justify-center shrink-0">
                {entry.progressType === 'executing' ? (
                  <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />
@@ -703,14 +703,14 @@ export default function ChatsPage() {
         )
       case 'step_completed':
         return (
-          <div className="ml-0.5 border-l-2 border-border/20 pl-6 my-2 space-y-2">
+          <div className="ml-0.5 border-l-2 border-border/20 pl-4 my-2 space-y-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/5 border border-green-500/10 w-fit">
               <CheckCircle2 className="h-3 w-3 text-green-500" />
               <span className="text-[11px] font-bold text-green-600/80 uppercase tracking-tight">Step Result: {entry.status}</span>
             </div>
             {entry.terminalResponse ? (
                <div className="relative group">
-                <div className="absolute left-[-25px] top-3 h-px w-4 bg-border/40" />
+                <div className="absolute left-[-17px] top-3 h-px w-3 bg-border/40" />
                 <div className="rounded-xl border border-border/40 bg-zinc-950 p-0 overflow-hidden shadow-sm">
                   <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
@@ -768,7 +768,6 @@ export default function ChatsPage() {
     <div className="w-full h-screen max-h-screen flex flex-col animate-in fade-in duration-500 overflow-hidden">
       <header className="shrink-0 px-6 md:px-8 pt-6 md:pt-8 pb-4">
         <div className="flex items-center gap-3">
-          <MessageSquare className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Chats</h2>
         </div>
       </header>
@@ -971,7 +970,7 @@ export default function ChatsPage() {
             </div>
 
 
-            <div className="shrink-0 pt-3 flex items-center justify-between text-xs text-muted-foreground w-full max-w-3xl mx-auto px-4">
+            <div className="shrink-0 pt-3 flex items-center justify-between text-xs text-muted-foreground w-full max-w-5xl mx-auto px-4">
               <span>
                 {selectedSession
                   ? `Updated ${formatDate(selectedSession.updatedAt)} · ${formatTokenSummary(
@@ -991,7 +990,7 @@ export default function ChatsPage() {
               aria-label="Chat messages"
               onScroll={handleMessageListScroll}
             >
-              <div className="w-full max-w-3xl mx-auto flex flex-col gap-3">
+              <div className="w-full max-w-5xl mx-auto flex flex-col gap-3">
                 {isMessagesLoading ? <p className="text-sm text-muted-foreground">Loading messages...</p> : null}
                 {!isMessagesLoading && isLoadingOlderMessages ? <p className="text-sm text-muted-foreground">Loading older messages...</p> : null}
                 {!isMessagesLoading && hasActiveConversation && messages.length === 0 ? (
@@ -1058,7 +1057,7 @@ export default function ChatsPage() {
                           <div className="absolute left-[3px] top-6 bottom-0 w-px bg-gradient-to-b from-border/60 via-border/20 to-transparent" />
                           <div className="space-y-4 text-sm text-foreground/90">
                             {visibleStreamEvents.map((entry) => (
-                              <div key={entry.id} className="relative pl-6">
+                              <div key={entry.id} className="relative pl-5">
                                 <div className="absolute left-[-2px] top-[14px] h-2 w-2 rounded-full border-2 border-background bg-border/60" />
                                 <div className="max-w-full overflow-hidden">{renderStreamEvent(entry)}</div>
                               </div>

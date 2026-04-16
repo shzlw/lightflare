@@ -41,7 +41,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { request } from '@/lib/api'
-import { Plus, Search, Archive, Trash2, ChevronLeft, ChevronRight, Brain, Save, FileText, Clock, User, MessageSquare, ArrowDown, ArrowUp } from 'lucide-react'
+import { Plus, Search, Archive, Trash2, ChevronLeft, ChevronRight, Save, FileText, Clock, User, MessageSquare, ArrowDown, ArrowUp } from 'lucide-react'
 
 type Memory = {
   id: string
@@ -333,7 +333,6 @@ export default function MemoriesPage() {
     <div className="w-full max-w-7xl mx-auto space-y-8 p-6 md:p-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-2 mb-8">
         <div className="flex items-center gap-3">
-          <Brain className="h-8 w-8 text-primary" />
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Memories</h2>
         </div>
       </header>
