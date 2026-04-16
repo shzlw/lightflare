@@ -56,6 +56,7 @@ Use exact values from the inputs when populating tool arguments. Do not infer mi
         {
           "name": "url",
           "type": "string",
+          "description": "The full URL of the webpage to extract content from",
           "required": true,
           "properties": []
         }

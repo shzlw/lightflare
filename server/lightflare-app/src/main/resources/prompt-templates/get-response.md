@@ -42,7 +42,7 @@ Use only provided skills, provided tools, and relevant memory. If memory conflic
   - `name`: the tool name to call
   - `description`: what the tool does
   - `properties`: the expected input schema for the tool arguments
-    - each property includes `name`, `type`, `required`, and optional nested `properties`
+    - each property includes `name`, `type`, `description`, `required`, and optional nested `properties`
   Example JSON:
   ```json
   [
@@ -53,6 +53,7 @@ Use only provided skills, provided tools, and relevant memory. If memory conflic
         {
           "name": "url",
           "type": "string",
+          "description": "The full URL of the webpage to extract content from",
           "required": true,
           "properties": []
         }
