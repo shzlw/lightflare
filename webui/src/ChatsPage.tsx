@@ -28,7 +28,7 @@ import {
 import { request, streamRequest } from '@/lib/api'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
-import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, MessageSquare } from 'lucide-react'
+import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, MessageSquare, Brain, ListTodo, Play, CheckCircle2, Zap, AlertCircle, Terminal, FileText, Loader2, Info } from 'lucide-react'
 
 type ChatSession = {
   id: string
@@ -620,54 +620,147 @@ export default function ChatsPage() {
   )
 
   function renderStreamEvent(entry: StreamTimelineEntry) {
+    const iconProps = { className: 'h-3.5 w-3.5' }
+
     switch (entry.type) {
       case 'message_start':
-        return <p>Assistant response started. Message id: {entry.messageId}</p>
+        return (
+          <div className="flex items-center gap-3 py-1.5 px-3 rounded-lg bg-muted/30 border border-border/20">
+            <Info {...iconProps} className="h-3.5 w-3.5 text-blue-500" />
+            <span className="text-xs font-medium text-muted-foreground italic">
+              Assistant strategy initialized.
+            </span>
+          </div>
+        )
       case 'plan_created':
         return (
-          <>
-            <p className="font-medium">
-              Planned {entry.steps.length} step{entry.steps.length === 1 ? '' : 's'}
-              {entry.selectedSkill ? ` using ${entry.selectedSkill}` : ''}.
-            </p>
-            {entry.thoughtProcess ? <p className="mt-1 opacity-90 break-words line-clamp-3 hover:line-clamp-none transition-all">{entry.thoughtProcess}</p> : null}
-            {entry.steps.length > 0 ? (
-              <ol className="mt-2 space-y-1 list-decimal list-inside opacity-80">
+          <div className="space-y-3 p-4 rounded-xl border border-border/40 bg-card/50 shadow-sm">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                <Brain className="h-4 w-4" />
+              </div>
+              <h4 className="text-sm font-semibold tracking-tight">Execution Strategy</h4>
+            </div>
+            
+            {entry.thoughtProcess && (
+              <div className="text-xs leading-relaxed text-muted-foreground bg-muted/40 p-3 rounded-lg border border-border/10">
+                <p className="line-clamp-3 hover:line-clamp-none transition-all cursor-help">
+                  {entry.thoughtProcess}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 px-1">
+                <ListTodo className="h-3 w-3" />
+                <span>Planned Steps ({entry.steps.length})</span>
+                {entry.selectedSkill && (
+                  <>
+                    <span className="mx-1 opacity-40">/</span>
+                    <span className="text-primary/80">{entry.selectedSkill}</span>
+                  </>
+                )}
+              </div>
+              <div className="grid gap-1.5">
                 {entry.steps.map((step) => (
-                  <li key={step.id} className="break-words">
-                    <span className="font-mono text-[10px] font-bold">{step.id}</span>: {step.content}
-                  </li>
+                  <div key={step.id} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/30 transition-colors group">
+                    <span className="shrink-0 w-5 h-5 flex items-center justify-center rounded bg-muted text-[10px] font-mono font-bold group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                      {step.id}
+                    </span>
+                    <span className="text-xs leading-snug">{step.content}</span>
+                  </div>
                 ))}
-              </ol>
-            ) : null}
-          </>
+              </div>
+            </div>
+          </div>
         )
       case 'step_started':
-        return <p>Started step {entry.stepId}: {entry.content}</p>
+        return (
+          <div className="flex items-center gap-3 py-1 px-1">
+            <div className="h-3.5 w-3.5 flex items-center justify-center">
+              <Play className="h-3 w-3 text-primary animate-pulse" fill="currentColor" />
+            </div>
+            <p className="text-xs font-semibold">
+              <span className="text-muted-foreground mr-1">Step {entry.stepId}:</span> {entry.content}
+            </p>
+          </div>
+        )
       case 'step_progress':
         return (
-          <p className="break-words">
-            {entry.stepId ? `Step ${entry.stepId}` : 'Step'} {entry.progressType}: {entry.message?.trim() || 'In progress'}
-          </p>
+          <div className="flex items-start gap-3 py-0.5 px-1 ml-0.5 border-l-2 border-border/20 pl-6 my-1">
+            <div className="h-3.5 w-3.5 flex items-center justify-center shrink-0">
+               {entry.progressType === 'executing' ? (
+                 <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />
+               ) : (
+                 <Zap className="h-3 w-3 text-amber-500" />
+               )}
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+              {entry.progressType !== 'executing' && <span className="font-bold mr-1 uppercase text-[9px] not-italic">{entry.progressType}</span>}
+              {entry.message?.trim() || 'Processing...'}
+            </p>
+          </div>
         )
       case 'step_completed':
         return (
-          <>
-            <p>Completed step {entry.stepId} with status {entry.status}.</p>
-            {entry.terminalResponse ? <p className="mt-1 font-mono text-[10px] bg-background/40 p-1.5 rounded border border-border/20 break-all whitespace-pre-wrap max-h-32 overflow-y-auto">{entry.terminalResponse}</p> : null}
-          </>
+          <div className="ml-0.5 border-l-2 border-border/20 pl-6 my-2 space-y-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/5 border border-green-500/10 w-fit">
+              <CheckCircle2 className="h-3 w-3 text-green-500" />
+              <span className="text-[11px] font-bold text-green-600/80 uppercase tracking-tight">Step Result: {entry.status}</span>
+            </div>
+            {entry.terminalResponse ? (
+               <div className="relative group">
+                <div className="absolute left-[-25px] top-3 h-px w-4 bg-border/40" />
+                <div className="rounded-xl border border-border/40 bg-zinc-950 p-0 overflow-hidden shadow-sm">
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="h-3 w-3 text-zinc-400" />
+                      <span className="text-[10px] font-mono text-zinc-400 font-bold uppercase tracking-wider">Output</span>
+                    </div>
+                  </div>
+                  <pre className="p-3 font-mono text-[11px] leading-relaxed text-zinc-300 break-all whitespace-pre-wrap max-h-48 overflow-y-auto [scrollbar-width:thin] scrollbar-color-zinc-800">
+                    {entry.terminalResponse}
+                  </pre>
+                </div>
+              </div>
+            ) : null}
+          </div>
         )
       case 'final_response':
         return (
-          <>
-            <p className="font-bold">Final response</p>
-            {entry.content ? <p className="mt-1 break-words whitespace-pre-wrap">{entry.content}</p> : null}
-          </>
+          <div className="space-y-3 p-4 rounded-xl border-2 border-primary/20 bg-primary/5 shadow-md mt-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary text-primary-foreground">
+                <FileText className="h-4 w-4" />
+              </div>
+              <h4 className="text-sm font-bold tracking-tight">Finalized Intelligence</h4>
+            </div>
+            {entry.content && (
+              <div className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                {entry.content}
+              </div>
+            )}
+          </div>
         )
       case 'message_complete':
-        return <p>Assistant message persisted. Message id: {entry.messageId}</p>
+        return (
+          <div className="flex items-center gap-3 py-1.5 px-3 rounded-lg bg-primary/5 border border-primary/10 mt-2">
+            <CheckCircle2 {...iconProps} className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
+              Message archived successfully
+            </span>
+          </div>
+        )
       case 'message_error':
-        return <p>{entry.message}</p>
+        return (
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive mt-2">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider">Execution Error</p>
+              <p className="text-sm font-medium leading-relaxed">{entry.message}</p>
+            </div>
+          </div>
+        )
     }
   }
 
@@ -928,36 +1021,49 @@ export default function ChatsPage() {
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-muted-foreground">
-                          {hasCompletedStream
-                            ? `Execution trace saved with ${visibleStreamEvents.length} events.`
-                            : `Execution trace in progress with ${visibleStreamEvents.length} events.`}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {isSending ? (
+                            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_var(--color-primary)] opacity-80" />
+                          ) : (
+                            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                          )}
+                          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                            {hasCompletedStream
+                              ? `${visibleStreamEvents.length} events traced`
+                              : `Streaming execution trace (${visibleStreamEvents.length})`}
+                          </span>
+                        </div>
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          className="h-8 gap-2 rounded-lg"
+                          className="h-8 gap-2 rounded-lg text-xs hover:bg-muted/50"
                           onClick={() => setIsStreamDetailsExpanded((current) => !current)}
                         >
                           {isStreamDetailsExpanded ? (
                             <>
                               <EyeOff className="h-3.5 w-3.5" />
-                              Hide details
+                              Hide log
                             </>
                           ) : (
                             <>
                               <Eye className="h-3.5 w-3.5" />
-                              Show details
+                              View log
                             </>
                           )}
                         </Button>
                       </div>
                       {isStreamDetailsExpanded ? (
-                        <div className="space-y-3 text-sm text-foreground/80 mt-4 pt-4 border-t border-border/20 overflow-hidden">
-                          {visibleStreamEvents.map((entry) => (
-                            <div key={entry.id} className="max-w-full overflow-hidden">{renderStreamEvent(entry)}</div>
-                          ))}
+                        <div className="relative mt-4 pt-4 border-t border-border/20">
+                          <div className="absolute left-[3px] top-6 bottom-0 w-px bg-gradient-to-b from-border/60 via-border/20 to-transparent" />
+                          <div className="space-y-4 text-sm text-foreground/90">
+                            {visibleStreamEvents.map((entry) => (
+                              <div key={entry.id} className="relative pl-6">
+                                <div className="absolute left-[-2px] top-[14px] h-2 w-2 rounded-full border-2 border-background bg-border/60" />
+                                <div className="max-w-full overflow-hidden">{renderStreamEvent(entry)}</div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ) : null}
                     </div>
