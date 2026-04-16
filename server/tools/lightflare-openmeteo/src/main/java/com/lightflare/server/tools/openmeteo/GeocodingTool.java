@@ -22,11 +22,13 @@ public class GeocodingTool implements Tool {
                     ToolInputDefinition.builder()
                             .name("location")
                             .type("string")
+                            .description("The name of the location to resolve (e.g., 'Berlin').")
                             .required(true)
                             .build(),
                     ToolInputDefinition.builder()
                             .name("country_code")
                             .type("string")
+                            .description("Optional ISO 3166-1 alpha-2 country code (e.g., 'DE').")
                             .required(false)
                             .build()
             ))

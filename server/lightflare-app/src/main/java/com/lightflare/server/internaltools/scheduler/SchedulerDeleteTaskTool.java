@@ -26,6 +26,7 @@ public class SchedulerDeleteTaskTool implements Tool {
                     ToolInputDefinition.builder()
                             .name("task_id")
                             .type("string")
+                            .description("The unique ID of the task to delete")
                             .required(true)
                             .build()
             ))

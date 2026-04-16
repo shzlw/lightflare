@@ -17,11 +17,13 @@ public class HttpGetTool extends AbstractHttpTool {
                     ToolInputDefinition.builder()
                             .name("url")
                             .type("string")
+                            .description("The full URL for the HTTP GET request.")
                             .required(true)
                             .build(),
                     ToolInputDefinition.builder()
                             .name("headers")
                             .type("object")
+                            .description("An object representing HTTP headers (e.g., {'Authorization': 'Bearer token'}).")
                             .required(false)
                             .build()
             ))

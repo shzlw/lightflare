@@ -22,6 +22,7 @@ public class WebPageContentExtractorTool implements Tool {
                     ToolInputDefinition.builder()
                             .name("url")
                             .type("string")
+                            .description("The full URL of the webpage to extract content from.")
                             .required(true)
                             .build()
             ))

@@ -28,6 +28,7 @@ public class SchedulerListTasksTool implements Tool {
                     ToolInputDefinition.builder()
                             .name("limit")
                             .type("integer")
+                            .description("Maximum number of tasks to return (default 20, max 100)")
                             .required(false)
                             .build()
             ))
