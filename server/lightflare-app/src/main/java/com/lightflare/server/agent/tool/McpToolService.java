@@ -187,6 +187,7 @@ public class McpToolService {
         }
 
         String type = stringValue(propertyMap.get("type"));
+        String description = stringValue(propertyMap.get("description"));
         if (!StringUtils.hasText(type)) {
             type = inferTypeFromSchema(propertyMap);
         }
@@ -208,6 +209,7 @@ public class McpToolService {
         return ToolInputDefinition.builder()
             .name(name)
             .type(StringUtils.hasText(type) ? type : "string")
+            .description(description)
             .required(requiredNames.contains(name))
             .properties(nestedParameters)
             .build();

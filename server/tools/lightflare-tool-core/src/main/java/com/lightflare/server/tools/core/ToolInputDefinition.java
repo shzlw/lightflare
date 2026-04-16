@@ -17,6 +17,8 @@ public class ToolInputDefinition {
 
     private String type;
 
+    private String description;
+
     private boolean required;
 
     @Builder.Default

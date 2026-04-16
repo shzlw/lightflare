@@ -48,6 +48,7 @@ public class ToolCatalogService {
                 .map(parameter -> new ToolParameterResponse(
                         parameter.getName(),
                         parameter.getType(),
+                        parameter.getDescription(),
                         parameter.isRequired(),
                         toParameterResponses(parameter.getProperties())
                 ))
