@@ -111,6 +111,18 @@
 
 		<dependency>
 			<groupId>com.lightflare</groupId>
+			<artifactId>lightflare-postgres</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.lightflare</groupId>
+			<artifactId>lightflare-httpclient</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.lightflare</groupId>
 			<artifactId>lightflare-document</artifactId>
 			<version>${project.version}</version>
 		</dependency>

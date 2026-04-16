@@ -45,6 +45,7 @@
 		<module>tools/lightflare-brave-search</module>
 		<module>tools/lightflare-httpclient</module>
 		<module>tools/lightflare-email</module>
+		<module>tools/lightflare-postgres</module>
 		<module>llmproviders/lightflare-llmprovider-core</module>
 		<module>llmproviders/lightflare-ollama</module>
 		<module>llmproviders/lightflare-openai</module>
