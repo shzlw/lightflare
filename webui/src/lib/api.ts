@@ -17,6 +17,8 @@ export interface Workflow {
   sourceChatSessionId?: string | null;
   sourceChatMessageId?: string | null;
   schemaDefinition: string; // JSON string
+  definitionJson?: string;
+  createdBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,11 +26,15 @@ export interface Workflow {
 export interface WorkflowExecution {
   id: string;
   workflowId: string;
+  triggerId?: string | null;
+  triggerType?: string | null;
   userId?: string | null;
   version: number;
   status: string;
   inputData?: string | null;
   outputData?: string | null;
+  inputJson?: string | null;
+  outputJson?: string | null;
   errorMessage?: string | null;
   source?: string | null;
   sourceId?: string | null;
@@ -39,16 +45,31 @@ export interface WorkflowExecution {
 export interface WorkflowStepExecution {
   id: string;
   workflowExecutionId: string;
+  workflowRunId?: string;
   stepId: string;
+  stepName?: string | null;
   stepType?: string;
   actionIdentifier?: string | null;
   version: number;
   status: string;
   inputData: string | null;
   outputData: string | null;
+  inputJson?: string | null;
+  outputJson?: string | null;
   errorMessage: string | null;
   startedAt: string;
   completedAt: string | null;
+}
+
+export interface WorkflowTrigger {
+  id: string
+  workflowId: string
+  triggerType: string
+  name: string | null
+  enabled: boolean
+  configJson: string
+  createdAt: string
+  updatedAt: string
 }
 
 function readCookie(name: string) {
@@ -252,6 +273,62 @@ export async function upsertWorkflow(id: string, workflow: Partial<Workflow>): P
   });
 }
 
+export async function deleteWorkflow(id: string): Promise<void> {
+  return request<void>(`/api/v1/workflows/${id}`, { method: 'DELETE' })
+}
+
+export async function setWorkflowEnabled(id: string, enabled: boolean): Promise<Workflow> {
+  return request<Workflow>(`/api/v1/workflows/${id}/enabled`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  })
+}
+
+export async function listWorkflowTriggers(id: string): Promise<WorkflowTrigger[]> {
+  return request<WorkflowTrigger[]>(`/api/v1/workflows/${id}/triggers`)
+}
+
+export async function createWorkflowTrigger(
+  workflowId: string,
+  trigger: {
+    triggerType?: string
+    type?: string
+    name?: string | null
+    enabled?: boolean
+    configJson?: string
+  },
+): Promise<WorkflowTrigger> {
+  return request<WorkflowTrigger>(`/api/v1/workflows/${workflowId}/triggers`, {
+    method: 'POST',
+    body: JSON.stringify(trigger),
+  })
+}
+
+export async function updateWorkflowTrigger(
+  workflowId: string,
+  triggerId: string,
+  trigger: {
+    triggerType?: string
+    type?: string
+    name?: string | null
+    enabled?: boolean
+    configJson?: string
+  },
+): Promise<WorkflowTrigger> {
+  return request<WorkflowTrigger>(`/api/v1/workflows/${workflowId}/triggers/${triggerId}`, {
+    method: 'PUT',
+    body: JSON.stringify(trigger),
+  })
+}
+
+export async function deleteWorkflowTrigger(workflowId: string, triggerId: string): Promise<void> {
+  return request<void>(`/api/v1/workflows/${workflowId}/triggers/${triggerId}`, { method: 'DELETE' })
+}
+
+export async function listWorkflowRuns(id: string, limit = 20): Promise<WorkflowExecution[]> {
+  return request<WorkflowExecution[]>(`/api/v1/workflows/${id}/runs?limit=${limit}`)
+}
+
 export async function executeWorkflow(
   id: string,
   inputData: Record<string, unknown> = {},
@@ -261,6 +338,18 @@ export async function executeWorkflow(
     method: 'POST',
     body: JSON.stringify({ inputData, startStepId })
   });
+}
+
+export async function executeWorkflowTrigger(
+  workflowId: string,
+  triggerId: string,
+  inputData: Record<string, unknown> = {},
+  startStepId?: string,
+): Promise<{ executionId: string }> {
+  return request<{ executionId: string }>(`/api/v1/workflows/${workflowId}/triggers/${triggerId}/executions`, {
+    method: 'POST',
+    body: JSON.stringify({ inputData, startStepId }),
+  })
 }
 
 export async function getExecution(executionId: string): Promise<WorkflowExecution> {

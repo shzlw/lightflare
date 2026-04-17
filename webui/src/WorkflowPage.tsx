@@ -1,0 +1,595 @@
+import { useEffect, useMemo, useState } from 'react'
+import { NavLink, useNavigate, useParams } from 'react-router-dom'
+import {
+  deleteWorkflow,
+  executeWorkflow,
+  executeWorkflowTrigger,
+  getExecutionSteps,
+  getWorkflow,
+  listWorkflowRuns,
+  listWorkflows,
+  listWorkflowTriggers,
+  setWorkflowEnabled,
+  type Workflow,
+  type WorkflowExecution,
+  type WorkflowStepExecution,
+  type WorkflowTrigger,
+} from '@/lib/api'
+import { toast } from 'sonner'
+import { Toaster } from '@/components/ui/sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemHeader,
+  ItemTitle,
+} from '@/components/ui/item'
+import {
+  Activity,
+  AlertCircle,
+  CheckCircle2,
+  MessageSquare,
+  Play,
+  Search,
+  Trash2,
+  Workflow as WorkflowIcon,
+} from 'lucide-react'
+
+type WorkflowStep = {
+  id?: string
+  stepId?: string
+  name?: string
+  type?: string
+  toolName?: string
+  actionIdentifier?: string
+  prompt?: string
+  input?: Record<string, unknown>
+  inputMapping?: Record<string, unknown>
+  output?: Record<string, unknown>
+  outputMapping?: Record<string, unknown>
+  onError?: string
+}
+
+type WorkflowDefinition = {
+  version?: number
+  inputs?: Array<Record<string, unknown>>
+  steps?: WorkflowStep[]
+  triggers?: Array<Record<string, unknown>>
+}
+
+type ManualInputField = {
+  name?: string
+  label?: string
+  type?: string
+  required?: boolean
+  default?: unknown
+  description?: string
+}
+
+function titleFor(workflow: Workflow | null) {
+  return workflow?.name?.trim() || 'Untitled workflow'
+}
+
+function definitionJson(workflow: Workflow | null) {
+  return workflow?.schemaDefinition || workflow?.definitionJson || ''
+}
+
+function parseDefinition(workflow: Workflow | null): WorkflowDefinition {
+  const raw = definitionJson(workflow)
+  if (!raw) return { version: 1, inputs: [], steps: [], triggers: [] }
+  try {
+    const parsed = JSON.parse(raw) as WorkflowDefinition
+    return {
+      version: parsed.version ?? 1,
+      inputs: Array.isArray(parsed.inputs) ? parsed.inputs : [],
+      steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+      triggers: Array.isArray(parsed.triggers) ? parsed.triggers : [],
+    }
+  } catch {
+    return { version: 1, inputs: [], steps: [], triggers: [] }
+  }
+}
+
+function formatJson(value: unknown) {
+  if (value === undefined || value === null || value === '') return 'Not set'
+  if (typeof value === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2)
+    } catch {
+      return value
+    }
+  }
+  return JSON.stringify(value, null, 2)
+}
+
+function statusClass(status?: string | null) {
+  const normalized = status?.toLowerCase()
+  if (normalized === 'failed' || normalized === 'disabled') return 'bg-destructive/10 text-destructive border-destructive/20'
+  if (normalized === 'completed' || normalized === 'active' || normalized === 'success') {
+    return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+  }
+  return 'bg-primary/10 text-primary border-primary/20'
+}
+
+function stepId(step: WorkflowStep, index: number) {
+  return step.id || step.stepId || `step_${index + 1}`
+}
+
+function runOutput(run: WorkflowExecution) {
+  return run.outputJson ?? run.outputData ?? null
+}
+
+function runInput(run: WorkflowExecution) {
+  return run.inputJson ?? run.inputData ?? null
+}
+
+function stepOutput(step: WorkflowStepExecution) {
+  return step.outputJson ?? step.outputData ?? null
+}
+
+function stepInput(step: WorkflowStepExecution) {
+  return step.inputJson ?? step.inputData ?? null
+}
+
+function parseTriggerConfig(trigger: WorkflowTrigger | null): Record<string, unknown> {
+  if (!trigger?.configJson) return {}
+  try {
+    const parsed = JSON.parse(trigger.configJson)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
+  } catch {
+    return {}
+  }
+}
+
+function manualInputFields(trigger: WorkflowTrigger | null): ManualInputField[] {
+  const config = parseTriggerConfig(trigger)
+  const fields = config.inputFields
+  return Array.isArray(fields) ? fields.filter((field): field is ManualInputField => !!field && typeof field === 'object') : []
+}
+
+export default function WorkflowPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [workflows, setWorkflows] = useState<Workflow[]>([])
+  const [workflow, setWorkflow] = useState<Workflow | null>(null)
+  const [triggers, setTriggers] = useState<WorkflowTrigger[]>([])
+  const [runs, setRuns] = useState<WorkflowExecution[]>([])
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const [runSteps, setRunSteps] = useState<WorkflowStepExecution[]>([])
+  const [query, setQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRunning, setIsRunning] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [manualInputsByTriggerId, setManualInputsByTriggerId] = useState<Record<string, Record<string, unknown>>>({})
+
+  const definition = useMemo(() => parseDefinition(workflow), [workflow])
+  const selectedStep = useMemo(() => {
+    return definition.steps?.find((step, index) => stepId(step, index) === selectedStepId) ?? definition.steps?.[0] ?? null
+  }, [definition.steps, selectedStepId])
+  const selectedRun = runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null
+
+  useEffect(() => {
+    void loadWorkflows()
+  }, [])
+
+  useEffect(() => {
+    if (id && id !== 'new') {
+      void selectWorkflow(id)
+    }
+  }, [id])
+
+  useEffect(() => {
+    if (!selectedRun?.id) {
+      setRunSteps([])
+      return
+    }
+    void loadRunSteps(selectedRun.id)
+  }, [selectedRun?.id])
+
+  async function loadWorkflows() {
+    setIsLoading(true)
+    try {
+      const data = await listWorkflows()
+      setWorkflows(data)
+      if (!id && data.length > 0) {
+        navigate(`/workspace/workflows/${data[0].id}`, { replace: true })
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load workflows')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function selectWorkflow(workflowId: string) {
+    setIsLoading(true)
+    try {
+      const [nextWorkflow, nextTriggers, nextRuns] = await Promise.all([
+        getWorkflow(workflowId),
+        listWorkflowTriggers(workflowId),
+        listWorkflowRuns(workflowId, 20),
+      ])
+      setWorkflow(nextWorkflow)
+      setTriggers(nextTriggers)
+      setRuns(nextRuns)
+      setSelectedRunId(nextRuns[0]?.id ?? null)
+      const nextDefinition = parseDefinition(nextWorkflow)
+      setSelectedStepId(nextDefinition.steps?.[0] ? stepId(nextDefinition.steps[0], 0) : null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load workflow')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function refreshSelectedWorkflow() {
+    if (!workflow?.id) return
+    await selectWorkflow(workflow.id)
+  }
+
+  async function loadRunSteps(runId: string) {
+    try {
+      setRunSteps(await getExecutionSteps(runId))
+    } catch (err) {
+      setRunSteps([])
+    }
+  }
+
+  async function runWorkflow() {
+    if (!workflow?.id) return
+    setIsRunning(true)
+    try {
+      const result = await executeWorkflow(workflow.id)
+      toast.success(`Workflow started: ${result.executionId}`)
+      await refreshSelectedWorkflow()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to run workflow')
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  async function runManualTrigger(trigger: WorkflowTrigger) {
+    if (!workflow?.id) return
+    setIsRunning(true)
+    try {
+      const result = await executeWorkflowTrigger(
+        workflow.id,
+        trigger.id,
+        manualInputsByTriggerId[trigger.id] ?? {},
+      )
+      toast.success(`Workflow started: ${result.executionId}`)
+      await refreshSelectedWorkflow()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to run manual trigger')
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  function updateManualInput(triggerId: string, fieldName: string, value: unknown) {
+    setManualInputsByTriggerId((current) => ({
+      ...current,
+      [triggerId]: {
+        ...(current[triggerId] ?? {}),
+        [fieldName]: value,
+      },
+    }))
+  }
+
+  async function toggleEnabled() {
+    if (!workflow?.id) return
+    const nextEnabled = workflow.status !== 'active'
+    try {
+      const updated = await setWorkflowEnabled(workflow.id, nextEnabled)
+      setWorkflow(updated)
+      setWorkflows((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      toast.success(nextEnabled ? 'Workflow enabled' : 'Workflow disabled')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update workflow')
+    }
+  }
+
+  async function removeWorkflow() {
+    if (!workflow?.id || isDeleting) return
+    setIsDeleting(true)
+    try {
+      await deleteWorkflow(workflow.id)
+      toast.success('Workflow deleted')
+      const remaining = workflows.filter((item) => item.id !== workflow.id)
+      setWorkflows(remaining)
+      setWorkflow(null)
+      navigate(remaining[0] ? `/workspace/workflows/${remaining[0].id}` : '/workspace/workflows', { replace: true })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete workflow')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const filteredWorkflows = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    if (!normalized) return workflows
+    return workflows.filter((item) =>
+      [item.name, item.description, item.id].filter(Boolean).join(' ').toLowerCase().includes(normalized),
+    )
+  }, [query, workflows])
+
+  return (
+    <div className="h-screen max-h-screen overflow-hidden flex flex-col">
+      <header className="shrink-0 px-6 md:px-8 py-5 border-b border-border/40 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Workflow operations</p>
+          <h2 className="text-2xl font-bold tracking-tight">{titleFor(workflow)}</h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <NavLink to={workflow?.id ? `/workspace/chats?workflowMode=1&workflowId=${encodeURIComponent(workflow.id)}` : '/workspace/chats?workflowMode=1'}>
+              <MessageSquare className="h-4 w-4" />
+              Modify in Chat
+            </NavLink>
+          </Button>
+          <Button variant="outline" disabled={!workflow} onClick={() => void toggleEnabled()}>
+            {workflow?.status === 'active' ? 'Disable' : 'Enable'}
+          </Button>
+          <Button className="gap-2" disabled={!workflow || isRunning} onClick={() => void runWorkflow()}>
+            <Play className="h-4 w-4" />
+            {isRunning ? 'Running' : 'Run'}
+          </Button>
+          <Button variant="destructive" size="icon" disabled={!workflow || isDeleting} onClick={() => void removeWorkflow()}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+
+      <main className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_380px] overflow-hidden">
+        <aside className="min-h-0 border-r border-border/40 flex flex-col">
+          <div className="shrink-0 p-4 border-b border-border/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold tracking-tight">Workflows</h3>
+              <Badge variant="secondary">{workflows.length}</Badge>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search workflows..." />
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-3">
+            {isLoading && workflows.length === 0 ? <p className="text-sm text-muted-foreground p-2">Loading workflows...</p> : null}
+            {!isLoading && filteredWorkflows.length === 0 ? (
+              <div className="p-4 text-sm text-muted-foreground border border-dashed rounded-lg">
+                Create workflows from chat.
+              </div>
+            ) : null}
+            <ItemGroup>
+              {filteredWorkflows.map((item) => (
+                <Item
+                  key={item.id}
+                  variant="outline"
+                  size="sm"
+                  className={`cursor-pointer ${item.id === workflow?.id ? 'bg-muted/60' : ''}`}
+                  onClick={() => navigate(`/workspace/workflows/${item.id}`)}
+                >
+                  <ItemContent>
+                    <ItemHeader>
+                      <ItemTitle>{item.name || 'Untitled workflow'}</ItemTitle>
+                    </ItemHeader>
+                    <ItemDescription>{item.description || item.id}</ItemDescription>
+                    <Badge variant="outline" className={`mt-2 w-fit ${statusClass(item.status)}`}>{item.status || 'draft'}</Badge>
+                  </ItemContent>
+                </Item>
+              ))}
+            </ItemGroup>
+          </div>
+        </aside>
+
+        <section className="min-h-0 overflow-y-auto p-6 space-y-6">
+          {!workflow ? (
+            <div className="h-full flex items-center justify-center text-center text-muted-foreground">
+              <div>
+                <WorkflowIcon className="h-10 w-10 mx-auto mb-3" />
+                <p className="text-sm">Select a workflow.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">Steps</h3>
+                  <Badge variant="secondary">{definition.steps?.length ?? 0}</Badge>
+                </div>
+                <div className="grid gap-2">
+                  {definition.steps?.length ? definition.steps.map((step, index) => {
+                    const id = stepId(step, index)
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`text-left rounded-lg border p-4 transition-colors ${selectedStepId === id ? 'border-primary bg-primary/5' : 'border-border/40 hover:bg-muted/40'}`}
+                        onClick={() => setSelectedStepId(id)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold">{step.name || id}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{step.prompt || step.toolName || step.actionIdentifier || 'No action configured'}</p>
+                          </div>
+                          <Badge variant="outline">{step.type || 'step'}</Badge>
+                        </div>
+                      </button>
+                    )
+                  }) : (
+                    <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                      No steps defined. Use chat to design this workflow.
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold">Triggers</h3>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {triggers.length ? triggers.map((trigger) => (
+                    <div key={trigger.id} className="rounded-lg border border-border/40 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{trigger.name || trigger.triggerType}</p>
+                          <p className="text-xs text-muted-foreground font-mono mt-1">{trigger.id}</p>
+                        </div>
+                        <Badge variant="outline" className={trigger.enabled ? statusClass('active') : statusClass('disabled')}>
+                          {trigger.enabled ? 'enabled' : 'disabled'}
+                        </Badge>
+                      </div>
+                      <pre className="mt-3 text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-48">{formatJson(trigger.configJson)}</pre>
+                      {trigger.triggerType === 'manual' ? (
+                        <div className="mt-4 space-y-3 border-t border-border/40 pt-4">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Manual Run</p>
+                          {manualInputFields(trigger).map((field) => {
+                            const name = field.name?.trim()
+                            if (!name) return null
+                            const id = `manual-${trigger.id}-${name}`
+                            const value = manualInputsByTriggerId[trigger.id]?.[name] ?? field.default ?? ''
+                            const type = field.type === 'number' ? 'number' : field.type === 'boolean' ? 'checkbox' : 'text'
+                            return (
+                              <label key={name} className="block space-y-1" htmlFor={id}>
+                                <span className="text-xs font-medium">
+                                  {field.label || name}{field.required ? ' *' : ''}
+                                </span>
+                                {type === 'checkbox' ? (
+                                  <input
+                                    id={id}
+                                    type="checkbox"
+                                    checked={Boolean(value)}
+                                    onChange={(event) => updateManualInput(trigger.id, name, event.target.checked)}
+                                  />
+                                ) : (
+                                  <Input
+                                    id={id}
+                                    type={type}
+                                    value={String(value)}
+                                    onChange={(event) => updateManualInput(
+                                      trigger.id,
+                                      name,
+                                      type === 'number' ? Number(event.target.value) : event.target.value,
+                                    )}
+                                  />
+                                )}
+                                {field.description ? <span className="block text-xs text-muted-foreground">{field.description}</span> : null}
+                              </label>
+                            )
+                          })}
+                          {manualInputFields(trigger).length === 0 ? (
+                            <p className="text-xs text-muted-foreground">This trigger does not require input fields.</p>
+                          ) : null}
+                          <Button className="w-full gap-2" disabled={isRunning || !trigger.enabled} onClick={() => void runManualTrigger(trigger)}>
+                            <Play className="h-4 w-4" />
+                            {isRunning ? 'Running' : 'Run Manual Trigger'}
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )) : (
+                    <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                      No triggers defined.
+                    </div>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+        </section>
+
+        <aside className="min-h-0 border-l border-border/40 flex flex-col">
+          <div className="shrink-0 p-4 border-b border-border/40">
+            <h3 className="text-sm font-semibold tracking-tight">Details</h3>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
+            <section className="space-y-3">
+              <h4 className="text-sm font-semibold">Selected Step</h4>
+              {selectedStep ? (
+                <div className="rounded-lg border border-border/40 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold">{selectedStep.name || selectedStep.id || selectedStep.stepId}</p>
+                    <Badge variant="outline">{selectedStep.type || 'step'}</Badge>
+                  </div>
+                  <pre className="text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-80">{formatJson(selectedStep)}</pre>
+                </div>
+              ) : <p className="text-sm text-muted-foreground">No step selected.</p>}
+            </section>
+
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold">Execution Logs</h4>
+                <Button variant="ghost" size="sm" disabled={!workflow} onClick={() => void refreshSelectedWorkflow()}>
+                  Refresh
+                </Button>
+              </div>
+              {runs.length ? (
+                <div className="space-y-2">
+                  {runs.map((run) => (
+                    <button
+                      key={run.id}
+                      type="button"
+                      className={`w-full text-left rounded-lg border p-3 ${selectedRun?.id === run.id ? 'border-primary bg-primary/5' : 'border-border/40 hover:bg-muted/40'}`}
+                      onClick={() => setSelectedRunId(run.id)}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-mono truncate">{run.id}</span>
+                        <Badge variant="outline" className={statusClass(run.status)}>{run.status}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {run.triggerType || 'manual'} · {new Date(run.startedAt).toLocaleString()}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No runs yet.</p>
+              )}
+            </section>
+
+            {selectedRun ? (
+              <section className="space-y-3">
+                <h4 className="text-sm font-semibold">Run Result</h4>
+                <div className="rounded-lg border border-border/40 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    {selectedRun.status?.toLowerCase() === 'failed' ? <AlertCircle className="h-4 w-4 text-destructive" /> : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                    <Badge variant="outline" className={statusClass(selectedRun.status)}>{selectedRun.status}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Input</p>
+                    <pre className="text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-40">{formatJson(runInput(selectedRun))}</pre>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Output</p>
+                    <pre className="text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-40">{formatJson(runOutput(selectedRun))}</pre>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Activity className="h-4 w-4" />
+                    Step Runs
+                  </div>
+                  {runSteps.length ? runSteps.map((step) => (
+                    <div key={step.id} className="rounded-lg border border-border/40 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">{step.stepName || step.stepId}</span>
+                        <Badge variant="outline" className={statusClass(step.status)}>{step.status}</Badge>
+                      </div>
+                      <pre className="mt-2 text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-32">{formatJson(stepOutput(step) || stepInput(step) || step.errorMessage)}</pre>
+                    </div>
+                  )) : <p className="text-sm text-muted-foreground">No step logs yet.</p>}
+                </div>
+              </section>
+            ) : null}
+          </div>
+        </aside>
+      </main>
+      <Toaster richColors position="top-right" />
+    </div>
+  )
+}

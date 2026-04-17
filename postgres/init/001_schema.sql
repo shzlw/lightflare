@@ -149,7 +149,7 @@ CREATE TABLE workflow
 CREATE TABLE workflow_trigger
 (
     id              TEXT PRIMARY KEY,
-    workflow_id     TEXT        NOT NULL REFERENCES workflow (id) ON DELETE CASCADE,
+    workflow_id     TEXT        NOT NULL,
     trigger_type    VARCHAR(32) NOT NULL,
     name            VARCHAR(255),
     enabled         BOOLEAN     NOT NULL DEFAULT TRUE,
@@ -161,8 +161,8 @@ CREATE TABLE workflow_trigger
 CREATE TABLE workflow_run
 (
     id              TEXT PRIMARY KEY,
-    workflow_id     TEXT        NOT NULL REFERENCES workflow (id) ON DELETE CASCADE,
-    trigger_id      TEXT REFERENCES workflow_trigger (id) ON DELETE SET NULL,
+    workflow_id     TEXT        NOT NULL,
+    trigger_id      TEXT,
     trigger_type    VARCHAR(32) NOT NULL,
     status          VARCHAR(32) NOT NULL,
     input_json      TEXT        NOT NULL,
@@ -178,7 +178,7 @@ CREATE TABLE workflow_run
 CREATE TABLE workflow_step_run
 (
     id              TEXT PRIMARY KEY,
-    workflow_run_id TEXT        NOT NULL REFERENCES workflow_run (id) ON DELETE CASCADE,
+    workflow_run_id TEXT        NOT NULL,
     step_id         TEXT        NOT NULL,
     step_name       VARCHAR(255),
     step_type       VARCHAR(32) NOT NULL,

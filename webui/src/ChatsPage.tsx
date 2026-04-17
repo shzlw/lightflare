@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { NavLink, useSearchParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,10 +26,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { request, streamRequest } from '@/lib/api'
+import {
+  listWorkflowTriggers,
+  listWorkflows,
+  request,
+  streamRequest,
+  type Workflow,
+  type WorkflowTrigger,
+} from '@/lib/api'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
-import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, Brain, ListTodo, Play, CheckCircle2, Zap, AlertCircle, Terminal, FileText, Loader2, Info } from 'lucide-react'
+import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, Brain, ListTodo, Play, CheckCircle2, Zap, AlertCircle, Terminal, FileText, Loader2, Info, Workflow as WorkflowIcon } from 'lucide-react'
 
 type ChatSession = {
   id: string
@@ -145,6 +153,11 @@ const pageSize = 20
 const messagePageSize = 10
 const sessionPageSizeOptions = [10, 20, 50] as const
 
+type WorkflowDefinition = {
+  steps?: Array<Record<string, unknown>>
+  triggers?: Array<Record<string, unknown>>
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
@@ -198,7 +211,38 @@ function scrollMessageListToBottom(container: HTMLDivElement | null) {
   container.scrollTop = container.scrollHeight
 }
 
+function parseWorkflowDefinition(workflow: Workflow | null): WorkflowDefinition {
+  const raw = workflow?.schemaDefinition || workflow?.definitionJson
+  if (!raw) return { steps: [], triggers: [] }
+  try {
+    const parsed = JSON.parse(raw) as WorkflowDefinition
+    return {
+      steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+      triggers: Array.isArray(parsed.triggers) ? parsed.triggers : [],
+    }
+  } catch {
+    return { steps: [], triggers: [] }
+  }
+}
+
+function formatJson(value: unknown) {
+  if (value === undefined || value === null || value === '') return 'Not set'
+  if (typeof value === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2)
+    } catch {
+      return value
+    }
+  }
+  return JSON.stringify(value, null, 2)
+}
+
+function workflowStepId(step: Record<string, unknown>, index: number) {
+  return String(step.id || step.stepId || `step_${index + 1}`)
+}
+
 export default function ChatsPage() {
+  const [searchParams] = useSearchParams()
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -220,11 +264,64 @@ export default function ChatsPage() {
   const [streamEvents, setStreamEvents] = useState<StreamTimelineEntry[]>([])
   const [retainedStreamEvents, setRetainedStreamEvents] = useState<StreamTimelineEntry[]>([])
   const [isStreamDetailsExpanded, setIsStreamDetailsExpanded] = useState(false)
+  const [isWorkflowPanelOpen, setIsWorkflowPanelOpen] = useState(false)
+  const [workflows, setWorkflows] = useState<Workflow[]>([])
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null)
+  const [workflowTriggers, setWorkflowTriggers] = useState<WorkflowTrigger[]>([])
+  const [isWorkflowPanelLoading, setIsWorkflowPanelLoading] = useState(false)
   const messageListRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     void loadSessions(page, query, sessionPageSize)
   }, [page, query, sessionPageSize])
+
+  useEffect(() => {
+    if (searchParams.get('workflowMode') === '1') {
+      setIsWorkflowPanelOpen(true)
+    }
+    const workflowId = searchParams.get('workflowId')
+    if (workflowId) {
+      setSelectedWorkflowId(workflowId)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (isWorkflowPanelOpen) {
+      void loadWorkflowPanel()
+    }
+  }, [isWorkflowPanelOpen])
+
+  useEffect(() => {
+    if (isWorkflowPanelOpen && selectedWorkflowId) {
+      void loadWorkflowTriggers(selectedWorkflowId)
+    }
+  }, [isWorkflowPanelOpen, selectedWorkflowId])
+
+  async function loadWorkflowPanel() {
+    setIsWorkflowPanelLoading(true)
+    try {
+      const data = await listWorkflows()
+      setWorkflows(data)
+      setSelectedWorkflowId((current) => {
+        if (current && data.some((workflow) => workflow.id === current)) {
+          return current
+        }
+        return data[0]?.id ?? null
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load workflows.')
+    } finally {
+      setIsWorkflowPanelLoading(false)
+    }
+  }
+
+  async function loadWorkflowTriggers(workflowId: string) {
+    try {
+      setWorkflowTriggers(await listWorkflowTriggers(workflowId))
+    } catch {
+      setWorkflowTriggers([])
+    }
+  }
 
   async function loadSessions(nextPage: number, nextQuery: string, nextPageSize: number) {
     setIsSessionListLoading(true)
@@ -581,6 +678,12 @@ export default function ChatsPage() {
               requestAnimationFrame(() => {
                 scrollMessageListToBottom(messageListRef.current)
               })
+              if (isWorkflowPanelOpen) {
+                void loadWorkflowPanel()
+                if (selectedWorkflowId) {
+                  void loadWorkflowTriggers(selectedWorkflowId)
+                }
+              }
               break
             }
             case 'MESSAGE_ERROR': {
@@ -618,6 +721,8 @@ export default function ChatsPage() {
   const hasCompletedStream = visibleStreamEvents.some(
     (entry) => entry.type === 'message_complete' || entry.type === 'message_error',
   )
+  const selectedWorkflow = workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null
+  const selectedWorkflowDefinition = parseWorkflowDefinition(selectedWorkflow)
 
   function renderStreamEvent(entry: StreamTimelineEntry) {
     const iconProps = { className: 'h-3.5 w-3.5' }
@@ -774,7 +879,11 @@ export default function ChatsPage() {
 
       <section className="flex-1 min-h-0 px-6 md:px-8 pb-6 md:pb-8 grid gap-4 overflow-hidden grid-cols-1">
         {/* Main: sessions sidebar + chat thread */}
-        <div className="grid grid-cols-[minmax(260px,340px)_1fr] gap-4 min-h-0 overflow-hidden">
+        <div className={`grid gap-4 min-h-0 overflow-hidden ${
+          isWorkflowPanelOpen
+            ? 'grid-cols-[minmax(240px,300px)_minmax(0,1fr)_360px]'
+            : 'grid-cols-[minmax(260px,340px)_minmax(0,1fr)]'
+        }`}>
 
           {/* Sessions sidebar */}
           <aside className="flex flex-col min-h-0 rounded-xl border border-border/40 bg-card">
@@ -967,6 +1076,16 @@ export default function ChatsPage() {
                 <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Conversation</p>
                 <h3 className="text-lg font-bold tracking-tight">{selectedSession?.title?.trim() || 'New chat draft'}</h3>
               </div>
+              <Button
+                type="button"
+                variant={isWorkflowPanelOpen ? 'default' : 'outline'}
+                size="sm"
+                className="gap-2"
+                onClick={() => setIsWorkflowPanelOpen((current) => !current)}
+              >
+                <WorkflowIcon className="h-4 w-4" />
+                Workflow
+              </Button>
             </div>
 
 
@@ -1119,6 +1238,106 @@ export default function ChatsPage() {
               </div>
             </form>
           </section>
+
+          {isWorkflowPanelOpen ? (
+            <aside className="flex flex-col min-h-0 rounded-xl border border-border/40 bg-card overflow-hidden">
+              <div className="shrink-0 p-4 border-b border-border/40 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Workflow</p>
+                    <h3 className="text-lg font-bold tracking-tight">Design Reference</h3>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsWorkflowPanelOpen(false)}>
+                    Hide
+                  </Button>
+                </div>
+                <Select
+                  value={selectedWorkflowId ?? ''}
+                  onValueChange={(value) => setSelectedWorkflowId(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select workflow" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workflows.map((workflow) => (
+                      <SelectItem key={workflow.id} value={workflow.id}>
+                        {workflow.name || 'Untitled workflow'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+                {isWorkflowPanelLoading ? <p className="text-sm text-muted-foreground">Loading workflows...</p> : null}
+                {!isWorkflowPanelLoading && workflows.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Ask chat to create a workflow.
+                  </div>
+                ) : null}
+
+                {selectedWorkflow ? (
+                  <>
+                    <section className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="text-sm font-semibold">Steps</h4>
+                        <Badge variant="secondary">{selectedWorkflowDefinition.steps?.length ?? 0}</Badge>
+                      </div>
+                      <div className="space-y-2">
+                        {selectedWorkflowDefinition.steps?.length ? selectedWorkflowDefinition.steps.map((step, index) => (
+                          <div key={workflowStepId(step, index)} className="rounded-lg border border-border/40 p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold">{String(step.name || workflowStepId(step, index))}</p>
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                  {String(step.prompt || step.toolName || step.actionIdentifier || 'No action configured')}
+                                </p>
+                              </div>
+                              <Badge variant="outline">{String(step.type || 'step')}</Badge>
+                            </div>
+                          </div>
+                        )) : (
+                          <p className="text-sm text-muted-foreground">No steps defined yet.</p>
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="text-sm font-semibold">Triggers</h4>
+                        <Badge variant="secondary">{workflowTriggers.length}</Badge>
+                      </div>
+                      <div className="space-y-2">
+                        {workflowTriggers.length ? workflowTriggers.map((trigger) => (
+                          <div key={trigger.id} className="rounded-lg border border-border/40 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold">{trigger.name || trigger.triggerType}</p>
+                                <p className="text-xs text-muted-foreground">{trigger.triggerType}</p>
+                              </div>
+                              <Badge variant="outline">{trigger.enabled ? 'enabled' : 'disabled'}</Badge>
+                            </div>
+                            <pre className="mt-2 max-h-36 overflow-auto rounded-md bg-muted/40 p-2 text-[11px] leading-relaxed">
+                              {formatJson(trigger.configJson)}
+                            </pre>
+                          </div>
+                        )) : (
+                          <p className="text-sm text-muted-foreground">No triggers defined yet.</p>
+                        )}
+                      </div>
+                    </section>
+
+                    <Button asChild variant="outline" className="w-full gap-2">
+                      <NavLink to={`/workspace/workflows/${selectedWorkflow.id}`}>
+                        <WorkflowIcon className="h-4 w-4" />
+                        Open Workflow
+                      </NavLink>
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            </aside>
+          ) : null}
         </div>
       </section>
 
