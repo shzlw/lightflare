@@ -18,7 +18,7 @@ public interface WorkflowStepExecutionRepository extends CrudRepository<Workflow
                 id, workflow_execution_id, step_id, version, status, input_data, started_at
             )
             VALUES (
-                :id, :executionId, :stepId, :version, :status, CAST(:inputData AS jsonb), :startedAt
+                :id, :executionId, :stepId, :version, :status, :inputData, :startedAt
             )
             """)
     void insertStepExecution(@Param("id") String id,
@@ -33,7 +33,7 @@ public interface WorkflowStepExecutionRepository extends CrudRepository<Workflow
     @Query("""
             UPDATE workflow_step_execution
             SET status = :status,
-                output_data = CAST(:outputData AS jsonb),
+                output_data = :outputData,
                 error_message = :errorMessage,
                 completed_at = :completedAt
             WHERE id = :id

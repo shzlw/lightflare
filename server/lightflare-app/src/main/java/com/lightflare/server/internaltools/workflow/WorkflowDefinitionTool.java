@@ -26,7 +26,7 @@ public class WorkflowDefinitionTool implements InternalTool {
     private final ToolService toolService;
 
     private static final String USAGE_GUIDANCE = """
-            Use this tool to manage workflows. The `schema_definition` is a JSONB document.
+            Use this tool to manage workflows. The `schema_definition` is a JSON document stored as text.
             
             <STRUCTURE>
             {

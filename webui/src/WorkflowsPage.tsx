@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/item'
 import { Input } from '@/components/ui/input'
 import { executeWorkflow, listWorkflows, type Workflow } from '@/lib/api'
-import { Plus, Clock, ExternalLink, Play, GitBranch, Activity, Search, Workflow as WorkflowIcon } from 'lucide-react'
+import { Plus, Clock, ExternalLink, Play, Search, Workflow as WorkflowIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
@@ -50,25 +50,6 @@ export default function WorkflowsPage() {
     }
   }
 
-  const workflowStats = useMemo(() => {
-    return workflows.reduce(
-      (stats, workflow) => {
-        try {
-          const schema = JSON.parse(workflow.schemaDefinition || '{}')
-          const steps = Array.isArray(schema.steps) ? schema.steps : []
-          stats.steps += steps.length
-          if (steps.some((step: any) => step?.type?.toUpperCase() === 'TRIGGER')) {
-            stats.triggered += 1
-          }
-        } catch {
-          stats.invalid += 1
-        }
-        return stats
-      },
-      { steps: 0, triggered: 0, invalid: 0 },
-    )
-  }, [workflows])
-
   const filteredWorkflows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase()
     if (!normalizedSearch) return workflows
@@ -90,40 +71,13 @@ export default function WorkflowsPage() {
       </header>
 
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <h3 className="text-xl font-semibold">Automation Library</h3>
-          <span className="bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">{workflows.length} total</span>
-        </div>
+        <h3 className="text-xl font-semibold">Library</h3>
         <Button asChild>
           <NavLink to="/workspace/workflows/new" className="gap-2">
             <Plus className="h-4 w-4" /> New Workflow
           </NavLink>
         </Button>
       </div>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="p-4 rounded-2xl border bg-card/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Workflows</span>
-            <span className="text-2xl font-bold">{workflows.length}</span>
-          </div>
-          <WorkflowIcon className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 text-primary/10 group-hover:text-primary/20 transition-colors" />
-        </div>
-        <div className="p-4 rounded-2xl border bg-emerald-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Steps</span>
-            <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{workflowStats.steps}</span>
-          </div>
-          <GitBranch className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors" />
-        </div>
-        <div className="p-4 rounded-2xl border bg-blue-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Triggered</span>
-            <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{workflowStats.triggered}</span>
-          </div>
-          <Activity className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 text-blue-500/10 group-hover:text-blue-500/20 transition-colors" />
-        </div>
-      </section>
 
       <div className="flex flex-col gap-4 items-center justify-between bg-muted/30 p-2 rounded-lg">
         <div className="w-full relative">

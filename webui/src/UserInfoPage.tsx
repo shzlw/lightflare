@@ -129,46 +129,58 @@ export default function UserInfoPage({ currentUser, onUserChange }: UserInfoPage
 
           {user ? (
             <div className="space-y-8 animate-in fade-in duration-300">
-              {user.mustChangePassword ? (
-                <section className="rounded-xl border border-destructive/20 shadow-sm overflow-hidden flex flex-col bg-destructive/5">
-                  <div className="bg-destructive/10 text-destructive px-5 py-4 flex items-center justify-between border-b border-destructive/10">
-                    <span className="text-sm font-bold flex items-center gap-2"><ShieldAlert className="h-4 w-4" /> Action Required: Update Password</span>
-                  </div>
-                  <div className="p-5">
-                    <p className="text-sm text-foreground mb-4">This account was created from the bootstrap superadmin login. Set a new password before using the rest of the workspace.</p>
-                    <form className="space-y-4" onSubmit={handlePasswordSubmit}>
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold flex items-center gap-2">New Password</label>
-                        <Input
-                          className="h-10 rounded-md bg-background w-full sm:max-w-md"
-                          type="password"
-                          value={newPassword}
-                          onChange={(event) => setNewPassword(event.target.value)}
-                          autoComplete="new-password"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold flex items-center gap-2">Confirm Password</label>
-                        <Input
-                          className="h-10 rounded-md bg-background w-full sm:max-w-md"
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(event) => setConfirmPassword(event.target.value)}
-                          autoComplete="new-password"
-                          required
-                        />
-                      </div>
-                      <div className="pt-2">
-                        <Button type="submit" disabled={isUpdatingPassword} className="shadow-sm min-w-32 gap-2">
-                          <KeyRound className="h-4 w-4" />
-                          {isUpdatingPassword ? 'Updating...' : 'Update password'}
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                </section>
-              ) : null}
+              <section className={`rounded-xl border shadow-sm overflow-hidden flex flex-col ${user.mustChangePassword ? 'border-destructive/20 bg-destructive/5' : 'border-border/40 bg-card'}`}>
+                <div className={`px-5 py-4 flex items-center justify-between border-b ${user.mustChangePassword ? 'bg-destructive/10 text-destructive border-destructive/10' : 'bg-muted/30 border-border/40'}`}>
+                  <span className="text-sm font-bold flex items-center gap-2">
+                    {user.mustChangePassword ? (
+                      <>
+                        <ShieldAlert className="h-4 w-4" /> Action Required: Update Password
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="h-4 w-4" /> Change Password
+                      </>
+                    )}
+                  </span>
+                </div>
+                <div className="p-5">
+                  <p className="text-sm text-foreground mb-4">
+                    {user.mustChangePassword
+                      ? 'This account was created from the bootstrap superadmin login. Set a new password before using the rest of the workspace.'
+                      : 'Update the password for your signed-in account.'}
+                  </p>
+                  <form className="space-y-4" onSubmit={handlePasswordSubmit}>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold flex items-center gap-2">New Password</label>
+                      <Input
+                        className="h-10 rounded-md bg-background w-full sm:max-w-md"
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                        autoComplete="new-password"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold flex items-center gap-2">Confirm Password</label>
+                      <Input
+                        className="h-10 rounded-md bg-background w-full sm:max-w-md"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        autoComplete="new-password"
+                        required
+                      />
+                    </div>
+                    <div className="pt-2">
+                      <Button type="submit" disabled={isUpdatingPassword} className="shadow-sm min-w-32 gap-2">
+                        <KeyRound className="h-4 w-4" />
+                        {isUpdatingPassword ? 'Updating...' : 'Update password'}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </section>
 
               <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <article className="p-4 rounded-xl bg-muted/30 border shadow-sm transition-shadow">

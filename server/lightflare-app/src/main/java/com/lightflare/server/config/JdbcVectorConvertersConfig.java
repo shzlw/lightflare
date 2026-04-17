@@ -6,7 +6,6 @@ import java.util.List;
 import org.postgresql.util.PGobject;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;

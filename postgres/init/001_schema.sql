@@ -177,7 +177,7 @@ CREATE TABLE workflow
     id                TEXT PRIMARY KEY,
     name              VARCHAR(255) NOT NULL,
     description       TEXT,
-    schema_definition JSONB DEFAULT '{"version": 1, "steps": []}'::jsonb,
+    schema_definition TEXT DEFAULT '{"version": 1, "steps": []}',
     created_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -199,8 +199,8 @@ CREATE TABLE workflow_step_execution
     step_id               VARCHAR(100) NOT NULL,
     version               INT NOT NULL DEFAULT 1,
     status                VARCHAR(50) NOT NULL,
-    input_data            JSONB,
-    output_data           JSONB,
+    input_data            TEXT,
+    output_data           TEXT,
     error_message         TEXT,
     started_at            TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     completed_at          TIMESTAMPTZ,

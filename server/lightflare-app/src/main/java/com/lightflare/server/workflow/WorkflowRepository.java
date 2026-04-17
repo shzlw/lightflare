@@ -24,7 +24,7 @@ public interface WorkflowRepository extends CrudRepository<Workflow, String> {
                 :id,
                 :name,
                 :description,
-                CAST(:schemaDefinition AS jsonb),
+                :schemaDefinition,
                 :createdAt,
                 :updatedAt
             )
@@ -41,7 +41,7 @@ public interface WorkflowRepository extends CrudRepository<Workflow, String> {
             UPDATE workflow
             SET name = :name,
                 description = :description,
-                schema_definition = CAST(:schemaDefinition AS jsonb),
+                schema_definition = :schemaDefinition,
                 updated_at = :updatedAt
             WHERE id = :id
             """)
