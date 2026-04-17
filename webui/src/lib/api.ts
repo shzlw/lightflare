@@ -8,6 +8,37 @@ export type AuthUser = {
   mustChangePassword: boolean
 }
 
+export interface Workflow {
+  id: string;
+  name: string;
+  description: string;
+  schemaDefinition: string; // JSON string
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowExecution {
+  id: string;
+  workflowId: string;
+  version: number;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface WorkflowStepExecution {
+  id: string;
+  workflowExecutionId: string;
+  stepId: string;
+  version: number;
+  status: string;
+  inputData: string | null;
+  outputData: string | null;
+  errorMessage: string | null;
+  startedAt: string;
+  completedAt: string | null;
+}
+
 function readCookie(name: string) {
   const cookiePrefix = `${name}=`
   return document.cookie
@@ -185,6 +216,47 @@ function parseSseSegment<T>(segment: string) {
 
 export async function fetchCurrentUser() {
   return request<AuthUser>('/api/v1/auth/me', { method: 'GET' })
+}
+
+export async function listWorkflows(): Promise<Workflow[]> {
+  return request<Workflow[]>('/api/v1/workflows');
+}
+
+export async function getWorkflow(id: string): Promise<Workflow> {
+  return request<Workflow>(`/api/v1/workflows/${id}`);
+}
+
+export async function upsertWorkflow(id: string, workflow: Partial<Workflow>): Promise<Workflow> {
+  return request<Workflow>(`/api/v1/workflows/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(workflow)
+  });
+}
+
+export async function executeWorkflow(
+  id: string,
+  initialData: Record<string, unknown> = {},
+  startStepId?: string,
+): Promise<{ executionId: string }> {
+  return request<{ executionId: string }>(`/api/v1/workflows/${id}/executions`, {
+    method: 'POST',
+    body: JSON.stringify({ initialData, startStepId })
+  });
+}
+
+export async function getExecution(executionId: string): Promise<WorkflowExecution> {
+  return request<WorkflowExecution>(`/api/v1/executions/${executionId}`);
+}
+
+export async function getExecutionSteps(executionId: string): Promise<WorkflowStepExecution[]> {
+  return request<WorkflowStepExecution[]>(`/api/v1/executions/${executionId}/steps`);
+}
+
+export async function testWorkflowStep(step: any, context: any): Promise<any> {
+  return request<any>('/api/v1/workflows/test-step', {
+    method: 'POST',
+    body: JSON.stringify({ step, mockContext: context })
+  });
 }
 
 export async function login(loginValue: string, password: string) {

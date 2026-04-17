@@ -28,12 +28,15 @@ import SkillsPage from './SkillsPage'
 import ToolCatalogPage from './ToolCatalogPage'
 import UsersPage from './UsersPage'
 import UserInfoPage from './UserInfoPage'
+import WorkflowsPage from './WorkflowsPage'
+import WorkflowDesignerPage from './WorkflowDesignerPage'
 
 const baseMenuItems = [
   { label: 'Chats', path: '/workspace/chats', icon: MessageSquare },
   { label: 'Memories', path: '/workspace/memories', icon: Brain },
   { label: 'Skills', path: '/workspace/skills', icon: Zap },
   { label: 'Cron Jobs', path: '/workspace/cron-jobs', icon: Clock },
+  { label: 'Workflows', path: '/workspace/workflows', icon: Zap },
   { label: 'Tool Catalog', path: '/workspace/tool-catalog', icon: Wrench },
 ]
 
@@ -214,6 +217,14 @@ function App() {
         <Route
           path="tool-catalog"
           element={<ToolCatalogPage />}
+        />
+        <Route
+          path="workflows"
+          element={<WorkflowsPage />}
+        />
+        <Route
+          path="workflows/:id"
+          element={<WorkflowDesignerPage />}
         />
         <Route
           path="users"

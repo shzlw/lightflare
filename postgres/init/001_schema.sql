@@ -10,6 +10,9 @@ DROP TABLE IF EXISTS app_user_identity;
 DROP TABLE IF EXISTS app_user;
 DROP TABLE IF EXISTS auth_session;
 DROP TABLE IF EXISTS scheduled_task;
+DROP TABLE IF EXISTS workflow_step_execution;
+DROP TABLE IF EXISTS workflow_execution;
+DROP TABLE IF EXISTS workflow;
 DROP TABLE IF EXISTS execution_checkpoint;
 
 CREATE TABLE memory
@@ -167,4 +170,39 @@ CREATE TABLE execution_checkpoint
     payload         TEXT       NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE workflow
+(
+    id                TEXT PRIMARY KEY,
+    name              VARCHAR(255) NOT NULL,
+    description       TEXT,
+    schema_definition JSONB DEFAULT '{"version": 1, "steps": []}'::jsonb,
+    created_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE workflow_execution
+(
+    id                TEXT PRIMARY KEY,
+    workflow_id       TEXT NOT NULL,
+    version           INT NOT NULL DEFAULT 1,
+    status            VARCHAR(50) NOT NULL,
+    started_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    completed_at      TIMESTAMPTZ
+);
+
+CREATE TABLE workflow_step_execution
+(
+    id                    TEXT PRIMARY KEY,
+    workflow_execution_id TEXT NOT NULL,
+    step_id               VARCHAR(100) NOT NULL,
+    version               INT NOT NULL DEFAULT 1,
+    status                VARCHAR(50) NOT NULL,
+    input_data            JSONB,
+    output_data           JSONB,
+    error_message         TEXT,
+    started_at            TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    completed_at          TIMESTAMPTZ,
+    UNIQUE (workflow_execution_id, step_id)
 );

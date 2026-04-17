@@ -1,5 +1,6 @@
 package com.lightflare.server.tool;
 
+import com.lightflare.server.agent.tool.InternalToolService;
 import com.lightflare.server.agent.tool.ToolService;
 import com.lightflare.server.tool.ToolParameterResponse;
 import com.lightflare.server.tool.ToolResponse;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -18,9 +20,10 @@ public class ToolCatalogService {
     private static final String MCP_TOOL_PREFIX = "mcp.";
 
     private final ToolService toolService;
+    private final InternalToolService internalToolService;
 
     public List<ToolResponse> listTools() {
-        return toolService.listTools().stream()
+        return Stream.concat(toolService.listTools().stream(), internalToolService.listTools().stream())
                 .map(this::toResponse)
                 .sorted(java.util.Comparator.comparing(ToolResponse::name, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(ToolResponse::name))
@@ -56,6 +59,9 @@ public class ToolCatalogService {
     }
 
     private ToolSource resolveSource(String toolName) {
+        if (internalToolService.supports(toolName)) {
+            return new ToolSource("INTERNAL", "internal");
+        }
         if (!StringUtils.hasText(toolName) || !toolName.startsWith(MCP_TOOL_PREFIX)) {
             return new ToolSource("LOCAL", "local");
         }

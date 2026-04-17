@@ -6,13 +6,17 @@ import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.memory.ConversationContextService;
 import com.lightflare.server.agent.skill.SkillContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
+import com.lightflare.server.agent.tool.InternalToolService;
 import com.lightflare.server.agent.tool.ToolService;
 import com.lightflare.server.chat.CreateChatRequest;
+import com.lightflare.server.tools.core.ToolDefinition;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -22,6 +26,7 @@ public class AgentService {
     private static final String LOG_STAGE = "AGENT_REQ";
 
     private final ToolService toolService;
+    private final InternalToolService internalToolService;
     private final ConversationContextService conversationContextService;
     private final SkillSelectionService skillSelectionService;
     private final AgentExecutionService agentExecutionService;
@@ -34,7 +39,7 @@ public class AgentService {
         Objects.requireNonNull(request, "request must not be null");
         log.info("[{}][START] sessionId={}, userId={}", LOG_STAGE, request.getSessionId(), request.getUserId());
 
-        AgentRunContext runContext = new AgentRunContext(request, toolService.listTools());
+        AgentRunContext runContext = new AgentRunContext(request, listLlmTools());
         log.info("[{}][TOOLS_READY] sessionId={}, toolCount={}", LOG_STAGE, runContext.sessionId(), runContext.tools().size());
         if (agentExecutionService.hasResumableCheckpoint(runContext.sessionId())) {
             log.info("[{}][RESUME] sessionId={} has a running execution checkpoint", LOG_STAGE, runContext.sessionId());
@@ -70,5 +75,10 @@ public class AgentService {
                 LOG_STAGE,
                 runContext.sessionId(), response != null ? response.length() : 0);
         return response;
+    }
+
+    private List<ToolDefinition> listLlmTools() {
+        return Stream.concat(toolService.listTools().stream(), internalToolService.listTools().stream())
+                .toList();
     }
 }

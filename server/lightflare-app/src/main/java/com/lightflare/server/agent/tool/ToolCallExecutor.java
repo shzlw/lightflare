@@ -32,6 +32,7 @@ public class ToolCallExecutor {
     private static final String LOG_STAGE = "TOOL_EXEC";
 
     private final ToolService toolService;
+    private final InternalToolService internalToolService;
     private final PlanStepFormatter planStepFormatter;
 
     public ToolResult handleToolAction(AgentRunContext runContext,
@@ -95,7 +96,7 @@ public class ToolCallExecutor {
 
         ToolDefinition toolDefinition;
         try {
-            toolDefinition = toolService.findDefinition(toolCall.getToolName());
+            toolDefinition = findDefinition(toolCall.getToolName());
         } catch (IllegalArgumentException e) {
             return stepResponse;
         }
@@ -155,6 +156,10 @@ public class ToolCallExecutor {
         try {
             log.info("[{}][TOOL_SERVICE_CALL] toolName={}, argumentCount={}",
                     LOG_STAGE, toolCall.getToolName(), arguments.size());
+            if (internalToolService.supports(toolCall.getToolName())) {
+                return internalToolService.execute(toolCall.getToolName(), arguments,
+                        runContext != null ? runContext.userId() : null);
+            }
             return toolService.execute(toolCall.getToolName(), arguments, runContext != null ? runContext.userId() : null);
         } catch (RuntimeException e) {
             log.warn("[{}][TOOL_SERVICE_FAIL] toolName={}", LOG_STAGE, toolCall.getToolName(), e);
@@ -163,6 +168,13 @@ public class ToolCallExecutor {
                             + ": " + e.getMessage()
             );
         }
+    }
+
+    private ToolDefinition findDefinition(String toolName) {
+        if (internalToolService.supports(toolName)) {
+            return internalToolService.findDefinition(toolName);
+        }
+        return toolService.findDefinition(toolName);
     }
 
     private Map<String, List<String>> toolCallParametersByName(LLMGetResponse.ToolCall toolCall) {
