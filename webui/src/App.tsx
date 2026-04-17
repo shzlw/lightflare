@@ -28,7 +28,6 @@ import SkillsPage from './SkillsPage'
 import ToolCatalogPage from './ToolCatalogPage'
 import UsersPage from './UsersPage'
 import UserInfoPage from './UserInfoPage'
-import WorkflowsPage from './WorkflowsPage'
 import WorkflowDesignerPage from './WorkflowDesignerPage'
 
 const baseMenuItems = [
@@ -220,7 +219,7 @@ function App() {
         />
         <Route
           path="workflows"
-          element={<WorkflowsPage />}
+          element={<WorkflowDesignerPage />}
         />
         <Route
           path="workflows/:id"

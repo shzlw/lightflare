@@ -1,5 +1,6 @@
 package com.lightflare.server.workflow;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jdbc.repository.query.Query;
@@ -16,7 +17,9 @@ public interface WorkflowRepository extends CrudRepository<Workflow, String> {
                 id,
                 name,
                 description,
-                schema_definition,
+                status,
+                definition_json,
+                created_by,
                 created_at,
                 updated_at
             )
@@ -24,7 +27,9 @@ public interface WorkflowRepository extends CrudRepository<Workflow, String> {
                 :id,
                 :name,
                 :description,
+                :status,
                 :schemaDefinition,
+                :createdBy,
                 :createdAt,
                 :updatedAt
             )
@@ -32,24 +37,28 @@ public interface WorkflowRepository extends CrudRepository<Workflow, String> {
     int insertWorkflow(@Param("id") String id,
                        @Param("name") String name,
                        @Param("description") String description,
+                       @Param("status") String status,
                        @Param("schemaDefinition") String schemaDefinition,
-                       @Param("createdAt") java.time.OffsetDateTime createdAt,
-                       @Param("updatedAt") java.time.OffsetDateTime updatedAt);
+                       @Param("createdBy") String createdBy,
+                       @Param("createdAt") OffsetDateTime createdAt,
+                       @Param("updatedAt") OffsetDateTime updatedAt);
 
     @Modifying
     @Query("""
             UPDATE workflow
             SET name = :name,
                 description = :description,
-                schema_definition = :schemaDefinition,
+                status = :status,
+                definition_json = :schemaDefinition,
                 updated_at = :updatedAt
             WHERE id = :id
             """)
     int updateWorkflow(@Param("id") String id,
                        @Param("name") String name,
                        @Param("description") String description,
+                       @Param("status") String status,
                        @Param("schemaDefinition") String schemaDefinition,
-                       @Param("updatedAt") java.time.OffsetDateTime updatedAt);
+                       @Param("updatedAt") OffsetDateTime updatedAt);
 
     @Query("""
             SELECT *

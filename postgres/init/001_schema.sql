@@ -9,9 +9,9 @@ DROP TABLE IF EXISTS skill;
 DROP TABLE IF EXISTS app_user_identity;
 DROP TABLE IF EXISTS app_user;
 DROP TABLE IF EXISTS auth_session;
-DROP TABLE IF EXISTS scheduled_task;
-DROP TABLE IF EXISTS workflow_step_execution;
-DROP TABLE IF EXISTS workflow_execution;
+DROP TABLE IF EXISTS workflow_step_run;
+DROP TABLE IF EXISTS workflow_run;
+DROP TABLE IF EXISTS workflow_trigger;
 DROP TABLE IF EXISTS workflow;
 DROP TABLE IF EXISTS execution_checkpoint;
 
@@ -134,29 +134,60 @@ CREATE TABLE auth_session
     updated_at         TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE scheduled_task
+CREATE TABLE workflow
 (
     id                TEXT PRIMARY KEY,
-    user_id           VARCHAR(128) NOT NULL,
-    task_name         VARCHAR(255) NOT NULL,
-    task_type         VARCHAR(64)  NOT NULL,
-    task_details      TEXT,
-    enabled           BOOLEAN      NOT NULL DEFAULT TRUE,
-    cron_expression   VARCHAR(128) NOT NULL,
-
-    next_run_at       TIMESTAMPTZ  NOT NULL,
-
-    last_started_at   TIMESTAMPTZ,
-    last_completed_at TIMESTAMPTZ,
-    last_success_at   TIMESTAMPTZ,
-    last_failure_at   TIMESTAMPTZ,
-    last_error        TEXT,
-
-    lease_owner       VARCHAR(255),
-    lease_until       TIMESTAMPTZ,
-
+    name              VARCHAR(255) NOT NULL,
+    description       TEXT,
+    status            VARCHAR(32)  NOT NULL DEFAULT 'draft',
+    definition_json   TEXT         NOT NULL,
+    created_by        VARCHAR(128),
     created_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE workflow_trigger
+(
+    id              TEXT PRIMARY KEY,
+    workflow_id     TEXT        NOT NULL REFERENCES workflow (id) ON DELETE CASCADE,
+    trigger_type    VARCHAR(32) NOT NULL,
+    name            VARCHAR(255),
+    enabled         BOOLEAN     NOT NULL DEFAULT TRUE,
+    config_json     TEXT        NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE workflow_run
+(
+    id              TEXT PRIMARY KEY,
+    workflow_id     TEXT        NOT NULL REFERENCES workflow (id) ON DELETE CASCADE,
+    trigger_id      TEXT REFERENCES workflow_trigger (id) ON DELETE SET NULL,
+    trigger_type    VARCHAR(32) NOT NULL,
+    status          VARCHAR(32) NOT NULL,
+    input_json      TEXT        NOT NULL,
+    output_json     TEXT,
+    error_message   TEXT,
+    started_by      VARCHAR(128),
+    source_id       TEXT,
+    started_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    completed_at    TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE workflow_step_run
+(
+    id              TEXT PRIMARY KEY,
+    workflow_run_id TEXT        NOT NULL REFERENCES workflow_run (id) ON DELETE CASCADE,
+    step_id         TEXT        NOT NULL,
+    step_name       VARCHAR(255),
+    step_type       VARCHAR(32) NOT NULL,
+    status          VARCHAR(32) NOT NULL,
+    input_json      TEXT        NOT NULL,
+    output_json     TEXT,
+    error_message   TEXT,
+    started_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    completed_at    TIMESTAMPTZ
 );
 
 CREATE TABLE execution_checkpoint
@@ -170,39 +201,4 @@ CREATE TABLE execution_checkpoint
     payload         TEXT       NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
-CREATE TABLE workflow
-(
-    id                TEXT PRIMARY KEY,
-    name              VARCHAR(255) NOT NULL,
-    description       TEXT,
-    schema_definition TEXT DEFAULT '{"version": 1, "steps": []}',
-    created_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
-CREATE TABLE workflow_execution
-(
-    id                TEXT PRIMARY KEY,
-    workflow_id       TEXT NOT NULL,
-    version           INT NOT NULL DEFAULT 1,
-    status            VARCHAR(50) NOT NULL,
-    started_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    completed_at      TIMESTAMPTZ
-);
-
-CREATE TABLE workflow_step_execution
-(
-    id                    TEXT PRIMARY KEY,
-    workflow_execution_id TEXT NOT NULL,
-    step_id               VARCHAR(100) NOT NULL,
-    version               INT NOT NULL DEFAULT 1,
-    status                VARCHAR(50) NOT NULL,
-    input_data            TEXT,
-    output_data           TEXT,
-    error_message         TEXT,
-    started_at            TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    completed_at          TIMESTAMPTZ,
-    UNIQUE (workflow_execution_id, step_id)
 );

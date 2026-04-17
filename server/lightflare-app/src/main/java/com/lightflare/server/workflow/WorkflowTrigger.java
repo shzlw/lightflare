@@ -7,8 +7,8 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("workflow_execution")
-public class WorkflowExecution {
+@Table("workflow_trigger")
+public class WorkflowTrigger {
 
     @Id
     private String id;
@@ -16,13 +16,18 @@ public class WorkflowExecution {
     @Column("workflow_id")
     private String workflowId;
 
-    private int version;
+    @Column("trigger_type")
+    private String triggerType;
 
-    private String status;
+    private String name;
+    private boolean enabled;
 
-    @Column("started_at")
-    private OffsetDateTime startedAt;
+    @Column("config_json")
+    private String configJson;
 
-    @Column("completed_at")
-    private OffsetDateTime completedAt;
+    @Column("created_at")
+    private OffsetDateTime createdAt;
+
+    @Column("updated_at")
+    private OffsetDateTime updatedAt;
 }

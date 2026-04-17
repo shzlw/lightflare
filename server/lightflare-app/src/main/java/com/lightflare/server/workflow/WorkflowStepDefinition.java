@@ -1,14 +1,19 @@
 package com.lightflare.server.workflow;
 
-import java.util.List;
 import java.util.Map;
 
 public record WorkflowStepDefinition(
-    String stepId,
-    String type,
-    String actionIdentifier,
-    Map<String, Object> inputMapping,
-    Map<String, Object> outputMapping,
-    List<WorkflowStepTransition> transitions,
-    Map<String, Object> metadata
-) {}
+        String id,
+        String stepId,
+        String name,
+        String type,
+        String toolName,
+        String prompt,
+        Map<String, Object> input,
+        Map<String, Object> output,
+        String onError
+) {
+    public String resolvedId() {
+        return id != null ? id : stepId;
+    }
+}

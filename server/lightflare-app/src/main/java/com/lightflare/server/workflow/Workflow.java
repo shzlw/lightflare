@@ -12,13 +12,15 @@ public class Workflow {
 
     @Id
     private String id;
-
     private String name;
-
     private String description;
+    private String status;
 
-    @Column("schema_definition")
+    @Column("definition_json")
     private String schemaDefinition;
+
+    @Column("created_by")
+    private String createdBy;
 
     @Column("created_at")
     private OffsetDateTime createdAt;

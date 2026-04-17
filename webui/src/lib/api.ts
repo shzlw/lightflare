@@ -12,6 +12,10 @@ export interface Workflow {
   id: string;
   name: string;
   description: string;
+  status?: string;
+  version?: number;
+  sourceChatSessionId?: string | null;
+  sourceChatMessageId?: string | null;
   schemaDefinition: string; // JSON string
   createdAt: string;
   updatedAt: string;
@@ -20,8 +24,14 @@ export interface Workflow {
 export interface WorkflowExecution {
   id: string;
   workflowId: string;
+  userId?: string | null;
   version: number;
   status: string;
+  inputData?: string | null;
+  outputData?: string | null;
+  errorMessage?: string | null;
+  source?: string | null;
+  sourceId?: string | null;
   startedAt: string;
   completedAt: string | null;
 }
@@ -30,6 +40,8 @@ export interface WorkflowStepExecution {
   id: string;
   workflowExecutionId: string;
   stepId: string;
+  stepType?: string;
+  actionIdentifier?: string | null;
   version: number;
   status: string;
   inputData: string | null;
@@ -222,6 +234,13 @@ export async function listWorkflows(): Promise<Workflow[]> {
   return request<Workflow[]>('/api/v1/workflows');
 }
 
+export async function createWorkflow(workflow: Partial<Workflow>): Promise<Workflow> {
+  return request<Workflow>('/api/v1/workflows', {
+    method: 'POST',
+    body: JSON.stringify(workflow)
+  });
+}
+
 export async function getWorkflow(id: string): Promise<Workflow> {
   return request<Workflow>(`/api/v1/workflows/${id}`);
 }
@@ -235,12 +254,12 @@ export async function upsertWorkflow(id: string, workflow: Partial<Workflow>): P
 
 export async function executeWorkflow(
   id: string,
-  initialData: Record<string, unknown> = {},
+  inputData: Record<string, unknown> = {},
   startStepId?: string,
 ): Promise<{ executionId: string }> {
   return request<{ executionId: string }>(`/api/v1/workflows/${id}/executions`, {
     method: 'POST',
-    body: JSON.stringify({ initialData, startStepId })
+    body: JSON.stringify({ inputData, startStepId })
   });
 }
 

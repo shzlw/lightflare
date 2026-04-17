@@ -7,27 +7,31 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Table("workflow_step_execution")
-public class WorkflowStepExecution {
+@Table("workflow_step_run")
+public class WorkflowStepRun {
 
     @Id
     private String id;
 
-    @Column("workflow_execution_id")
-    private String workflowExecutionId;
+    @Column("workflow_run_id")
+    private String workflowRunId;
 
     @Column("step_id")
     private String stepId;
 
-    private int version;
+    @Column("step_name")
+    private String stepName;
+
+    @Column("step_type")
+    private String stepType;
 
     private String status;
 
-    @Column("input_data")
-    private String inputData;
+    @Column("input_json")
+    private String inputJson;
 
-    @Column("output_data")
-    private String outputData;
+    @Column("output_json")
+    private String outputJson;
 
     @Column("error_message")
     private String errorMessage;

@@ -13,13 +13,13 @@ import java.util.concurrent.Executor;
 @EnableAsync
 public class ExecutorConfig {
 
-    @Bean(name = "scheduledTaskExecutor")
-    public Executor scheduledTaskExecutor(SchedulerProperties schedulerProperties) {
+    @Bean(name = "workflowSchedulerExecutor")
+    public Executor workflowSchedulerExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setThreadNamePrefix("scheduled-task-");
-        executor.setCorePoolSize(schedulerProperties.getExecutorCorePoolSize());
-        executor.setMaxPoolSize(schedulerProperties.getExecutorMaxPoolSize());
-        executor.setQueueCapacity(schedulerProperties.getExecutorQueueCapacity());
+        executor.setThreadNamePrefix("workflow-scheduler-");
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(100);
         executor.initialize();
         return executor;
     }
