@@ -1,6 +1,5 @@
 package com.lightflare.server.internaltools.workflow;
 
-import com.lightflare.server.agent.tool.InternalTool;
 import com.lightflare.server.tools.core.ToolArgument;
 import com.lightflare.server.tools.core.ToolDefinition;
 import com.lightflare.server.tools.core.ToolExecutionContext;
@@ -20,7 +19,7 @@ import org.springframework.util.StringUtils;
 
 @Component
 @RequiredArgsConstructor
-public class ManageWorkflowTool implements InternalTool {
+public class ManageWorkflowTool {
 
     private final WorkflowService workflowService;
     private final WorkflowEngine workflowEngine;
@@ -561,12 +560,10 @@ public class ManageWorkflowTool implements InternalTool {
             ))
             .build();
 
-    @Override
     public ToolDefinition definition() {
         return DEFINITION;
     }
 
-    @Override
     public ToolResult execute(List<ToolArgument> arguments, ToolExecutionContext context) {
         String action = requiredString(arguments, "action");
         try {
@@ -593,6 +590,56 @@ public class ManageWorkflowTool implements InternalTool {
         } catch (Exception e) {
             return ToolResult.failure("Workflow action failed: " + e.getMessage());
         }
+    }
+
+    public ToolResult listWorkflows() {
+        return success(workflowService.getAllWorkflows());
+    }
+
+    public ToolResult getWorkflow(List<ToolArgument> arguments) {
+        return handleGet(arguments);
+    }
+
+    public ToolResult createWorkflow(List<ToolArgument> arguments, ToolExecutionContext context) {
+        if (StringUtils.hasText(optionalString(arguments, "workflow_id"))) {
+            throw new IllegalArgumentException("create-workflow does not accept workflow_id. Use update-workflow to modify an existing workflow.");
+        }
+        return handleUpsert(arguments, context);
+    }
+
+    public ToolResult updateWorkflow(List<ToolArgument> arguments, ToolExecutionContext context) {
+        requiredString(arguments, "workflow_id");
+        return handleUpsert(arguments, context);
+    }
+
+    public ToolResult deleteWorkflow(List<ToolArgument> arguments) {
+        return handleDelete(arguments);
+    }
+
+    public ToolResult enableWorkflow(List<ToolArgument> arguments) {
+        return handleEnable(arguments);
+    }
+
+    public ToolResult manageTrigger(List<ToolArgument> arguments) {
+        String action = requiredString(arguments, "action");
+        return switch (action.trim().toLowerCase()) {
+            case "create" -> handleCreateTrigger(arguments);
+            case "update" -> handleUpdateTrigger(arguments);
+            case "delete" -> handleDeleteTrigger(arguments);
+            default -> ToolResult.failure("Unknown workflow trigger action: " + action);
+        };
+    }
+
+    public ToolResult runWorkflow(List<ToolArgument> arguments, ToolExecutionContext context) {
+        return handleRun(arguments, context);
+    }
+
+    public ToolResult workflowRuns(List<ToolArgument> arguments) {
+        return handleRuns(arguments);
+    }
+
+    public ToolResult workflowRunSteps(List<ToolArgument> arguments) {
+        return handleRunSteps(arguments);
     }
 
     private ToolResult handleGet(List<ToolArgument> arguments) {
@@ -631,6 +678,10 @@ public class ManageWorkflowTool implements InternalTool {
                 context != null ? context.userId() : null
         );
         List<WorkflowTrigger> createdTriggers = createTriggers(created.getId(), triggerDefinitions);
+        if (createdTriggers.isEmpty()) {
+            WorkflowTrigger defaultTrigger = workflowService.createDefaultManualTriggerIfMissing(created.getId());
+            createdTriggers = defaultTrigger != null ? List.of(defaultTrigger) : List.of();
+        }
         return success(Map.of(
                 "workflow", created,
                 "createdTriggers", createdTriggers,

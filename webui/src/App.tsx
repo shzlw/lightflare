@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { fetchCurrentUser, type AuthUser } from '@/lib/api'
-import { MessageSquare, Brain, Zap, Wrench, Users, UserCircle } from 'lucide-react'
+import { MessageSquare, Brain, Zap, Wrench, Users, UserCircle, Workflow as WorkflowIcon } from 'lucide-react'
 import './App.css'
 import ChatsPage from './ChatsPage'
 import LoginPage from './LoginPage'
@@ -33,7 +33,7 @@ const baseMenuItems = [
   { label: 'Chats', path: '/workspace/chats', icon: MessageSquare },
   { label: 'Memories', path: '/workspace/memories', icon: Brain },
   { label: 'Skills', path: '/workspace/skills', icon: Zap },
-  { label: 'Workflows', path: '/workspace/workflows', icon: Zap },
+  { label: 'Workflows', path: '/workspace/workflows', icon: WorkflowIcon },
   { label: 'Tool Catalog', path: '/workspace/tool-catalog', icon: Wrench },
 ]
 

@@ -15,8 +15,6 @@ import {
   type WorkflowStepExecution,
   type WorkflowTrigger,
 } from '@/lib/api'
-import { toast } from 'sonner'
-import { Toaster } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,6 +68,8 @@ type ManualInputField = {
   description?: string
 }
 
+type WorkflowInputField = ManualInputField
+
 function titleFor(workflow: Workflow | null) {
   return workflow?.name?.trim() || 'Untitled workflow'
 }
@@ -115,6 +115,10 @@ function statusClass(status?: string | null) {
   return 'bg-primary/10 text-primary border-primary/20'
 }
 
+function isWorkflowDisabled(workflow: Workflow | null) {
+  return workflow?.status?.toLowerCase() === 'disabled'
+}
+
 function stepId(step: WorkflowStep, index: number) {
   return step.id || step.stepId || `step_${index + 1}`
 }
@@ -151,6 +155,32 @@ function manualInputFields(trigger: WorkflowTrigger | null): ManualInputField[] 
   return Array.isArray(fields) ? fields.filter((field): field is ManualInputField => !!field && typeof field === 'object') : []
 }
 
+function defaultInputsFromDefinition(definition: WorkflowDefinition): Record<string, unknown> {
+  const inputs: Record<string, unknown> = {}
+  for (const field of definition.inputs ?? []) {
+    const name = typeof field.name === 'string' ? field.name.trim() : ''
+    if (name && Object.prototype.hasOwnProperty.call(field, 'default')) {
+      inputs[name] = field.default
+    }
+  }
+  return inputs
+}
+
+function workflowInputFields(definition: WorkflowDefinition): WorkflowInputField[] {
+  return (definition.inputs ?? []).filter((field): field is WorkflowInputField => !!field && typeof field === 'object')
+}
+
+function defaultInputsFromTrigger(trigger: WorkflowTrigger | null): Record<string, unknown> {
+  const inputs: Record<string, unknown> = {}
+  for (const field of manualInputFields(trigger)) {
+    const name = field.name?.trim()
+    if (name && Object.prototype.hasOwnProperty.call(field, 'default')) {
+      inputs[name] = field.default
+    }
+  }
+  return inputs
+}
+
 export default function WorkflowPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -165,6 +195,7 @@ export default function WorkflowPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRunning, setIsRunning] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [workflowInputs, setWorkflowInputs] = useState<Record<string, unknown>>({})
   const [manualInputsByTriggerId, setManualInputsByTriggerId] = useState<Record<string, Record<string, unknown>>>({})
 
   const definition = useMemo(() => parseDefinition(workflow), [workflow])
@@ -172,6 +203,7 @@ export default function WorkflowPage() {
     return definition.steps?.find((step, index) => stepId(step, index) === selectedStepId) ?? definition.steps?.[0] ?? null
   }, [definition.steps, selectedStepId])
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null
+  const workflowDisabled = isWorkflowDisabled(workflow)
 
   useEffect(() => {
     void loadWorkflows()
@@ -191,6 +223,10 @@ export default function WorkflowPage() {
     void loadRunSteps(selectedRun.id)
   }, [selectedRun?.id])
 
+  useEffect(() => {
+    setWorkflowInputs(defaultInputsFromDefinition(definition))
+  }, [workflow?.id, workflow?.schemaDefinition, workflow?.definitionJson])
+
   async function loadWorkflows() {
     setIsLoading(true)
     try {
@@ -199,8 +235,8 @@ export default function WorkflowPage() {
       if (!id && data.length > 0) {
         navigate(`/workspace/workflows/${data[0].id}`, { replace: true })
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load workflows')
+    } catch {
+      setWorkflows([])
     } finally {
       setIsLoading(false)
     }
@@ -220,8 +256,13 @@ export default function WorkflowPage() {
       setSelectedRunId(nextRuns[0]?.id ?? null)
       const nextDefinition = parseDefinition(nextWorkflow)
       setSelectedStepId(nextDefinition.steps?.[0] ? stepId(nextDefinition.steps[0], 0) : null)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load workflow')
+    } catch {
+      setWorkflow(null)
+      setTriggers([])
+      setRuns([])
+      setRunSteps([])
+      setSelectedRunId(null)
+      setSelectedStepId(null)
     } finally {
       setIsLoading(false)
     }
@@ -244,11 +285,30 @@ export default function WorkflowPage() {
     if (!workflow?.id) return
     setIsRunning(true)
     try {
-      const result = await executeWorkflow(workflow.id)
-      toast.success(`Workflow started: ${result.executionId}`)
+      await executeWorkflow(workflow.id, {
+        ...defaultInputsFromDefinition(definition),
+        ...workflowInputs,
+      })
       await refreshSelectedWorkflow()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to run workflow')
+    } catch {
+      await refreshSelectedWorkflow()
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  async function runWorkflowFromSelectedStep() {
+    if (!workflow?.id || !selectedStep) return
+    const startStepId = stepId(selectedStep, definition.steps?.indexOf(selectedStep) ?? 0)
+    setIsRunning(true)
+    try {
+      await executeWorkflow(workflow.id, {
+        ...defaultInputsFromDefinition(definition),
+        ...workflowInputs,
+      }, startStepId)
+      await refreshSelectedWorkflow()
+    } catch {
+      await refreshSelectedWorkflow()
     } finally {
       setIsRunning(false)
     }
@@ -258,15 +318,19 @@ export default function WorkflowPage() {
     if (!workflow?.id) return
     setIsRunning(true)
     try {
-      const result = await executeWorkflowTrigger(
+      await executeWorkflowTrigger(
         workflow.id,
         trigger.id,
-        manualInputsByTriggerId[trigger.id] ?? {},
+        {
+          ...defaultInputsFromDefinition(definition),
+          ...workflowInputs,
+          ...defaultInputsFromTrigger(trigger),
+          ...(manualInputsByTriggerId[trigger.id] ?? {}),
+        },
       )
-      toast.success(`Workflow started: ${result.executionId}`)
       await refreshSelectedWorkflow()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to run manual trigger')
+    } catch {
+      await refreshSelectedWorkflow()
     } finally {
       setIsRunning(false)
     }
@@ -282,6 +346,13 @@ export default function WorkflowPage() {
     }))
   }
 
+  function updateWorkflowInput(fieldName: string, value: unknown) {
+    setWorkflowInputs((current) => ({
+      ...current,
+      [fieldName]: value,
+    }))
+  }
+
   async function toggleEnabled() {
     if (!workflow?.id) return
     const nextEnabled = workflow.status !== 'active'
@@ -289,9 +360,8 @@ export default function WorkflowPage() {
       const updated = await setWorkflowEnabled(workflow.id, nextEnabled)
       setWorkflow(updated)
       setWorkflows((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-      toast.success(nextEnabled ? 'Workflow enabled' : 'Workflow disabled')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update workflow')
+    } catch {
+      await refreshSelectedWorkflow()
     }
   }
 
@@ -300,13 +370,19 @@ export default function WorkflowPage() {
     setIsDeleting(true)
     try {
       await deleteWorkflow(workflow.id)
-      toast.success('Workflow deleted')
       const remaining = workflows.filter((item) => item.id !== workflow.id)
       setWorkflows(remaining)
       setWorkflow(null)
+      setTriggers([])
+      setRuns([])
+      setRunSteps([])
+      setSelectedRunId(null)
+      setSelectedStepId(null)
+      setWorkflowInputs({})
+      setManualInputsByTriggerId({})
       navigate(remaining[0] ? `/workspace/workflows/${remaining[0].id}` : '/workspace/workflows', { replace: true })
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete workflow')
+    } catch {
+      await refreshSelectedWorkflow()
     } finally {
       setIsDeleting(false)
     }
@@ -335,11 +411,11 @@ export default function WorkflowPage() {
             </NavLink>
           </Button>
           <Button variant="outline" disabled={!workflow} onClick={() => void toggleEnabled()}>
-            {workflow?.status === 'active' ? 'Disable' : 'Enable'}
+            {workflow?.status === 'active' ? 'Disable Workflow' : 'Enable Workflow'}
           </Button>
-          <Button className="gap-2" disabled={!workflow || isRunning} onClick={() => void runWorkflow()}>
+          <Button className="gap-2" disabled={!workflow || workflowDisabled || isRunning} onClick={() => void runWorkflow()}>
             <Play className="h-4 w-4" />
-            {isRunning ? 'Running' : 'Run'}
+            {workflowDisabled ? 'Workflow Disabled' : isRunning ? 'Running' : 'Run Full Workflow'}
           </Button>
           <Button variant="destructive" size="icon" disabled={!workflow || isDeleting} onClick={() => void removeWorkflow()}>
             <Trash2 className="h-4 w-4" />
@@ -398,6 +474,47 @@ export default function WorkflowPage() {
             </div>
           ) : (
             <>
+              {workflowInputFields(definition).length ? (
+                <section className="space-y-3">
+                  <h3 className="text-lg font-semibold">Run Input</h3>
+                  <div className="grid gap-3 rounded-lg border border-border/40 p-3">
+                    {workflowInputFields(definition).map((field) => {
+                      const name = field.name?.trim()
+                      if (!name) return null
+                      const id = `workflow-input-${name}`
+                      const value = workflowInputs[name] ?? field.default ?? ''
+                      const type = field.type === 'number' ? 'number' : field.type === 'boolean' ? 'checkbox' : 'text'
+                      return (
+                        <label key={name} className="block space-y-1" htmlFor={id}>
+                          <span className="text-xs font-medium">
+                            {field.label || name}{field.required ? ' *' : ''}
+                          </span>
+                          {type === 'checkbox' ? (
+                            <input
+                              id={id}
+                              type="checkbox"
+                              checked={Boolean(value)}
+                              onChange={(event) => updateWorkflowInput(name, event.target.checked)}
+                            />
+                          ) : (
+                            <Input
+                              id={id}
+                              type={type}
+                              value={String(value)}
+                              onChange={(event) => updateWorkflowInput(
+                                name,
+                                type === 'number' ? Number(event.target.value) : event.target.value,
+                              )}
+                            />
+                          )}
+                          {field.description ? <span className="block text-xs text-muted-foreground">{field.description}</span> : null}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold">Steps</h3>
@@ -485,9 +602,9 @@ export default function WorkflowPage() {
                           {manualInputFields(trigger).length === 0 ? (
                             <p className="text-xs text-muted-foreground">This trigger does not require input fields.</p>
                           ) : null}
-                          <Button className="w-full gap-2" disabled={isRunning || !trigger.enabled} onClick={() => void runManualTrigger(trigger)}>
+                          <Button className="w-full gap-2" disabled={workflowDisabled || isRunning || !trigger.enabled} onClick={() => void runManualTrigger(trigger)}>
                             <Play className="h-4 w-4" />
-                            {isRunning ? 'Running' : 'Run Manual Trigger'}
+                            {workflowDisabled ? 'Workflow Disabled' : isRunning ? 'Running' : 'Run Manual Trigger'}
                           </Button>
                         </div>
                       ) : null}
@@ -515,6 +632,15 @@ export default function WorkflowPage() {
                     <p className="font-semibold">{selectedStep.name || selectedStep.id || selectedStep.stepId}</p>
                     <Badge variant="outline">{selectedStep.type || 'step'}</Badge>
                   </div>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    disabled={!workflow || workflowDisabled || isRunning}
+                    onClick={() => void runWorkflowFromSelectedStep()}
+                  >
+                    <Play className="h-4 w-4" />
+                    {workflowDisabled ? 'Workflow Disabled' : isRunning ? 'Running' : 'Run From This Step'}
+                  </Button>
                   <pre className="text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-80">{formatJson(selectedStep)}</pre>
                 </div>
               ) : <p className="text-sm text-muted-foreground">No step selected.</p>}
@@ -573,6 +699,12 @@ export default function WorkflowPage() {
                     <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Output</p>
                     <pre className="text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-40">{formatJson(runOutput(selectedRun))}</pre>
                   </div>
+                  {selectedRun.errorMessage ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-destructive mb-1">Error</p>
+                      <pre className="text-xs overflow-auto rounded-md bg-destructive/10 text-destructive p-3 max-h-40">{selectedRun.errorMessage}</pre>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-semibold">
@@ -585,7 +717,11 @@ export default function WorkflowPage() {
                         <span className="text-sm font-semibold">{step.stepName || step.stepId}</span>
                         <Badge variant="outline" className={statusClass(step.status)}>{step.status}</Badge>
                       </div>
-                      <pre className="mt-2 text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-32">{formatJson(stepOutput(step) || stepInput(step) || step.errorMessage)}</pre>
+                      {step.errorMessage ? (
+                        <pre className="mt-2 text-xs overflow-auto rounded-md bg-destructive/10 text-destructive p-3 max-h-32">{step.errorMessage}</pre>
+                      ) : (
+                        <pre className="mt-2 text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-32">{formatJson(stepOutput(step) || stepInput(step))}</pre>
+                      )}
                     </div>
                   )) : <p className="text-sm text-muted-foreground">No step logs yet.</p>}
                 </div>
@@ -594,7 +730,6 @@ export default function WorkflowPage() {
           </div>
         </aside>
       </main>
-      <Toaster richColors position="top-right" />
     </div>
   )
 }

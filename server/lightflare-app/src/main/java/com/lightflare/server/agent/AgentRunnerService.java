@@ -37,6 +37,7 @@ public class AgentRunnerService {
                 request.referenceType(),
                 request.referenceId(),
                 request.tools(),
+                request.toolExecutionRouter(),
                 request.listener()
         );
     }
@@ -60,7 +61,8 @@ public class AgentRunnerService {
                         request.referenceId(),
                         request.userId(),
                         request.task(),
-                        request.tools()
+                        request.tools(),
+                        request.toolExecutionRouter()
                 ),
                 request.conversationContext(),
                 request.skillContext(),

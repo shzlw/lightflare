@@ -267,6 +267,7 @@ public class AgentPlanner {
                         .name(tool.getName())
                         .description(tool.getDescription())
                         .category(tool.getCategory())
+                        .usageGuidance(tool.getUsageGuidance())
                         .build())
                 .toList();
     }

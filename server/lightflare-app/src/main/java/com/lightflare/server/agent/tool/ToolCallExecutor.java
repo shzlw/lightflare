@@ -31,8 +31,6 @@ public class ToolCallExecutor {
 
     private static final String LOG_STAGE = "TOOL_EXEC";
 
-    private final ToolService toolService;
-    private final InternalToolService internalToolService;
     private final PlanStepFormatter planStepFormatter;
 
     public ToolResult handleToolAction(AgentRunContext runContext,
@@ -80,7 +78,7 @@ public class ToolCallExecutor {
         return toolResult;
     }
 
-    public LLMStepResponse normalizeStepResponse(LLMStepResponse stepResponse) {
+    public LLMStepResponse normalizeStepResponse(AgentRunContext runContext, LLMStepResponse stepResponse) {
         if (stepResponse == null || stepResponse.getAction() == null) {
             return stepResponse;
         }
@@ -96,7 +94,7 @@ public class ToolCallExecutor {
 
         ToolDefinition toolDefinition;
         try {
-            toolDefinition = findDefinition(toolCall.getToolName());
+            toolDefinition = findDefinition(runContext, toolCall.getToolName());
         } catch (IllegalArgumentException e) {
             return stepResponse;
         }
@@ -156,11 +154,10 @@ public class ToolCallExecutor {
         try {
             log.info("[{}][TOOL_SERVICE_CALL] toolName={}, argumentCount={}",
                     LOG_STAGE, toolCall.getToolName(), arguments.size());
-            if (internalToolService.supports(toolCall.getToolName())) {
-                return internalToolService.execute(toolCall.getToolName(), arguments,
-                        runContext != null ? runContext.userId() : null);
+            if (runContext == null || runContext.toolExecutionRouter() == null) {
+                return ToolResult.failure("Tool execution router is not configured.");
             }
-            return toolService.execute(toolCall.getToolName(), arguments, runContext != null ? runContext.userId() : null);
+            return runContext.toolExecutionRouter().execute(toolCall.getToolName(), arguments, runContext.userId());
         } catch (RuntimeException e) {
             log.warn("[{}][TOOL_SERVICE_FAIL] toolName={}", LOG_STAGE, toolCall.getToolName(), e);
             return ToolResult.failure(
@@ -170,11 +167,11 @@ public class ToolCallExecutor {
         }
     }
 
-    private ToolDefinition findDefinition(String toolName) {
-        if (internalToolService.supports(toolName)) {
-            return internalToolService.findDefinition(toolName);
+    private ToolDefinition findDefinition(AgentRunContext runContext, String toolName) {
+        if (runContext != null && runContext.toolExecutionRouter() != null) {
+            return runContext.toolExecutionRouter().findDefinition(toolName);
         }
-        return toolService.findDefinition(toolName);
+        throw new IllegalArgumentException("Tool execution router is not configured.");
     }
 
     private Map<String, List<String>> toolCallParametersByName(LLMGetResponse.ToolCall toolCall) {

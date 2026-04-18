@@ -5,6 +5,7 @@ import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.plan.AgentPlanner;
 import com.lightflare.server.agent.skill.SkillContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
+import com.lightflare.server.agent.tool.ToolExecutionRouter;
 import com.lightflare.server.config.AgentProperties;
 import com.lightflare.server.execution.ExecutionCheckpoint;
 import com.lightflare.server.skill.Skill;
@@ -52,6 +53,7 @@ public class AgentExecutionService {
                          String referenceType,
                          String referenceId,
                          List<ToolDefinition> tools,
+                         ToolExecutionRouter toolExecutionRouter,
                          AgentExecutionListener listener) {
         AgentExecutionListener executionListener = listener != null ? listener : AgentExecutionListener.NOOP;
         ExecutionCheckpoint storedCheckpoint = checkpointService.findResumableCheckpoint(executionType, referenceType, referenceId)
@@ -66,7 +68,8 @@ public class AgentExecutionService {
                 checkpoint.getReferenceId(),
                 checkpoint.getUserId(),
                 checkpoint.getTask(),
-                tools
+                tools,
+                toolExecutionRouter
         );
         ConversationContext conversationContext = new ConversationContext(null, checkpoint.safePromptMemories());
         SkillContext skillContext = skillSelectionService.buildSkillContext(null);

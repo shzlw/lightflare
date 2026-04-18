@@ -23,21 +23,23 @@ public class WorkflowSchedulerTriggerRepository {
                                                            int batchSize) {
         String sql = """
                 WITH due_triggers AS (
-                    SELECT id
-                    FROM workflow_trigger
-                    WHERE trigger_type = 'scheduler'
-                      AND enabled = TRUE
+                    SELECT wt.id
+                    FROM workflow_trigger wt
+                    JOIN workflow w ON w.id = wt.workflow_id
+                    WHERE wt.trigger_type = 'scheduler'
+                      AND wt.enabled = TRUE
+                      AND w.status = 'active'
                       AND (
-                          config_json::jsonb ->> 'nextRunAt' IS NULL
-                          OR (config_json::jsonb ->> 'nextRunAt')::timestamptz <= :now
+                          wt.config_json::jsonb ->> 'nextRunAt' IS NULL
+                          OR (wt.config_json::jsonb ->> 'nextRunAt')::timestamptz <= :now
                       )
                       AND (
-                          config_json::jsonb ->> 'leaseUntil' IS NULL
-                          OR (config_json::jsonb ->> 'leaseUntil')::timestamptz < :now
+                          wt.config_json::jsonb ->> 'leaseUntil' IS NULL
+                          OR (wt.config_json::jsonb ->> 'leaseUntil')::timestamptz < :now
                       )
-                    ORDER BY (config_json::jsonb ->> 'nextRunAt')::timestamptz ASC NULLS FIRST,
-                             created_at ASC,
-                             id ASC
+                    ORDER BY (wt.config_json::jsonb ->> 'nextRunAt')::timestamptz ASC NULLS FIRST,
+                             wt.created_at ASC,
+                             wt.id ASC
                     LIMIT :batchSize
                     FOR UPDATE SKIP LOCKED
                 )

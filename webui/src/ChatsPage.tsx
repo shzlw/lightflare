@@ -732,7 +732,7 @@ export default function ChatsPage() {
     switch (entry.type) {
       case 'message_start':
         return (
-          <div className="flex items-center gap-3 py-1.5 px-3 rounded-lg bg-muted/30 border border-border/20">
+          <div className="flex items-center gap-2 py-1 px-2 rounded-md bg-muted/30 border border-border/20">
             <Info {...iconProps} className="h-3.5 w-3.5 text-blue-500" />
             <span className="text-xs font-medium text-muted-foreground italic">
               Assistant strategy initialized.
@@ -741,23 +741,23 @@ export default function ChatsPage() {
         )
       case 'plan_created':
         return (
-          <div className="space-y-3 p-4 rounded-xl border border-border/40 bg-card/50 shadow-sm">
+          <div className="space-y-2 p-3 rounded-lg border border-border/40 bg-card/50 shadow-sm">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                <Brain className="h-4 w-4" />
+              <div className="p-1 rounded-md bg-primary/10 text-primary">
+                <Brain className="h-3.5 w-3.5" />
               </div>
               <h4 className="text-sm font-semibold tracking-tight">Execution Strategy</h4>
             </div>
             
             {entry.thoughtProcess && (
-              <div className="text-xs leading-relaxed text-muted-foreground bg-muted/40 p-3 rounded-lg border border-border/10">
+              <div className="text-xs leading-snug text-muted-foreground bg-muted/40 p-2 rounded-md border border-border/10">
                 <p className="line-clamp-3 hover:line-clamp-none transition-all cursor-help">
                   {entry.thoughtProcess}
                 </p>
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 px-1">
                 <ListTodo className="h-3 w-3" />
                 <span>Planned Steps ({entry.steps.length})</span>
@@ -768,10 +768,10 @@ export default function ChatsPage() {
                   </>
                 )}
               </div>
-              <div className="grid gap-1.5">
+              <div className="grid gap-1">
                 {entry.steps.map((step) => (
-                  <div key={step.id} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/30 transition-colors group">
-                    <span className="shrink-0 w-5 h-5 flex items-center justify-center rounded bg-muted text-[10px] font-mono font-bold group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                  <div key={step.id} className="flex items-start gap-2 p-1.5 rounded-md hover:bg-muted/30 transition-colors group">
+                    <span className="shrink-0 min-w-8 h-5 px-1 flex items-center justify-center rounded bg-muted text-[10px] font-mono font-bold group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                       {step.id}
                     </span>
                     <span className="text-xs leading-snug">{step.content}</span>
@@ -783,7 +783,7 @@ export default function ChatsPage() {
         )
       case 'step_started':
         return (
-          <div className="flex items-center gap-3 py-1 px-1">
+          <div className="flex items-center gap-2 py-0.5 px-1">
             <div className="h-3.5 w-3.5 flex items-center justify-center">
               <Play className="h-3 w-3 text-primary animate-pulse" fill="currentColor" />
             </div>
@@ -794,7 +794,7 @@ export default function ChatsPage() {
         )
       case 'step_progress':
         return (
-          <div className="flex items-start gap-3 py-0.5 px-1 ml-0.5 border-l-2 border-border/20 pl-4 my-1">
+          <div className="flex items-start gap-2 py-0.5 px-1 ml-0.5 border-l-2 border-border/20 pl-3">
             <div className="h-3.5 w-3.5 flex items-center justify-center shrink-0">
                {entry.progressType === 'executing' ? (
                  <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />
@@ -810,22 +810,22 @@ export default function ChatsPage() {
         )
       case 'step_completed':
         return (
-          <div className="ml-0.5 border-l-2 border-border/20 pl-4 my-2 space-y-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/5 border border-green-500/10 w-fit">
+          <div className="ml-0.5 border-l-2 border-border/20 pl-3 space-y-1.5">
+            <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-green-500/5 border border-green-500/10 w-fit">
               <CheckCircle2 className="h-3 w-3 text-green-500" />
               <span className="text-[11px] font-bold text-green-600/80 uppercase tracking-tight">Step Result: {entry.status}</span>
             </div>
             {entry.terminalResponse ? (
                <div className="relative group">
-                <div className="absolute left-[-17px] top-3 h-px w-3 bg-border/40" />
-                <div className="rounded-xl border border-border/40 bg-zinc-950 p-0 overflow-hidden shadow-sm">
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800">
+                <div className="absolute left-[-13px] top-3 h-px w-2 bg-border/40" />
+                <div className="rounded-lg border border-border/40 bg-zinc-950 p-0 overflow-hidden shadow-sm">
+                  <div className="flex items-center justify-between px-2 py-1 bg-zinc-900 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
                       <Terminal className="h-3 w-3 text-zinc-400" />
                       <span className="text-[10px] font-mono text-zinc-400 font-bold uppercase tracking-wider">Output</span>
                     </div>
                   </div>
-                  <pre className="p-3 font-mono text-[11px] leading-relaxed text-zinc-300 break-all whitespace-pre-wrap max-h-48 overflow-y-auto [scrollbar-width:thin] scrollbar-color-zinc-800">
+                  <pre className="p-2 font-mono text-[11px] leading-snug text-zinc-300 break-all whitespace-pre-wrap max-h-40 overflow-y-auto [scrollbar-width:thin] scrollbar-color-zinc-800">
                     {entry.terminalResponse}
                   </pre>
                 </div>
@@ -835,15 +835,15 @@ export default function ChatsPage() {
         )
       case 'final_response':
         return (
-          <div className="space-y-3 p-4 rounded-xl border-2 border-primary/20 bg-primary/5 shadow-md mt-4">
+          <div className="space-y-2 p-3 rounded-lg border-2 border-primary/20 bg-primary/5 shadow-md mt-2">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primary text-primary-foreground">
-                <FileText className="h-4 w-4" />
+              <div className="p-1 rounded-md bg-primary text-primary-foreground">
+                <FileText className="h-3.5 w-3.5" />
               </div>
               <h4 className="text-sm font-bold tracking-tight">Finalized Intelligence</h4>
             </div>
             {entry.content && (
-              <div className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
+              <div className="text-sm leading-snug whitespace-pre-wrap font-medium">
                 {entry.content}
               </div>
             )}
@@ -851,7 +851,7 @@ export default function ChatsPage() {
         )
       case 'message_complete':
         return (
-          <div className="flex items-center gap-3 py-1.5 px-3 rounded-lg bg-primary/5 border border-primary/10 mt-2">
+          <div className="flex items-center gap-2 py-1 px-2 rounded-md bg-primary/5 border border-primary/10 mt-1">
             <CheckCircle2 {...iconProps} className="h-3.5 w-3.5 text-primary" />
             <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
               Message archived successfully
@@ -860,11 +860,11 @@ export default function ChatsPage() {
         )
       case 'message_error':
         return (
-          <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive mt-2">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <div className="space-y-1">
+          <div className="flex items-start gap-2 p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-destructive mt-1">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
               <p className="text-xs font-bold uppercase tracking-wider">Execution Error</p>
-              <p className="text-sm font-medium leading-relaxed">{entry.message}</p>
+              <p className="text-sm font-medium leading-snug">{entry.message}</p>
             </div>
           </div>
         )
@@ -1132,14 +1132,14 @@ export default function ChatsPage() {
                   : null}
 
                 {visibleStreamEvents.length > 0 ? (
-                  <article className="rounded-lg border border-border/40 p-4 bg-muted/20">
-                    <div className="flex items-center justify-between gap-3 mb-2">
+                  <article className="rounded-lg border border-border/40 p-3 bg-muted/20">
+                    <div className="flex items-center justify-between gap-3 mb-1.5">
                       <Badge variant="outline">stream</Badge>
                       <span className="text-xs text-muted-foreground">
                         {isSending ? 'Live execution' : 'Execution details'}
                       </span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           {isSending ? (
@@ -1174,12 +1174,12 @@ export default function ChatsPage() {
                         </Button>
                       </div>
                       {isStreamDetailsExpanded ? (
-                        <div className="relative mt-4 pt-4 border-t border-border/20">
-                          <div className="absolute left-[3px] top-6 bottom-0 w-px bg-gradient-to-b from-border/60 via-border/20 to-transparent" />
-                          <div className="space-y-4 text-sm text-foreground/90">
+                        <div className="relative mt-2 pt-2 border-t border-border/20">
+                          <div className="absolute left-[3px] top-4 bottom-0 w-px bg-gradient-to-b from-border/60 via-border/20 to-transparent" />
+                          <div className="space-y-2 text-sm text-foreground/90">
                             {visibleStreamEvents.map((entry) => (
-                              <div key={entry.id} className="relative pl-5">
-                                <div className="absolute left-[-2px] top-[14px] h-2 w-2 rounded-full border-2 border-background bg-border/60" />
+                              <div key={entry.id} className="relative pl-4">
+                                <div className="absolute left-[-1px] top-[10px] h-2 w-2 rounded-full border-2 border-background bg-border/60" />
                                 <div className="max-w-full overflow-hidden">{renderStreamEvent(entry)}</div>
                               </div>
                             ))}

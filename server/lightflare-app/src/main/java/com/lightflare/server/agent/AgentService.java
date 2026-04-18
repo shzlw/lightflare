@@ -6,16 +6,16 @@ import com.lightflare.server.agent.memory.ConversationContextService;
 import com.lightflare.server.agent.skill.SkillContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
 import com.lightflare.server.agent.tool.InternalToolService;
+import com.lightflare.server.agent.tool.ToolExecutionRouter;
+import com.lightflare.server.agent.tool.ToolExecutionRouters;
 import com.lightflare.server.agent.tool.ToolService;
 import com.lightflare.server.chat.CreateChatRequest;
-import com.lightflare.server.tools.core.ToolDefinition;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -37,6 +37,7 @@ public class AgentService {
     public String process(CreateChatRequest request, AgentExecutionListener listener) {
         Objects.requireNonNull(request, "request must not be null");
         log.info("[{}][START] sessionId={}, userId={}", LOG_STAGE, request.getSessionId(), request.getUserId());
+        ToolExecutionRouter toolExecutionRouter = ToolExecutionRouters.combined(toolService, internalToolService);
 
         AgentRunContext runContext = new AgentRunContext(
                 request.getSessionId(),
@@ -45,7 +46,8 @@ public class AgentService {
                 request.getSessionId(),
                 request.getUserId(),
                 request.getData(),
-                listLlmTools()
+                toolExecutionRouter.listTools(),
+                toolExecutionRouter
         );
         log.info("[{}][TOOLS_READY] sessionId={}, toolCount={}", LOG_STAGE, runContext.executionId(), runContext.tools().size());
         AgentTaskRequest taskRequest = new AgentTaskRequest(
@@ -56,6 +58,7 @@ public class AgentService {
                 runContext.userId(),
                 runContext.task(),
                 runContext.tools(),
+                runContext.toolExecutionRouter(),
                 new ConversationContext(null, List.of()),
                 skillSelectionService.buildSkillContext(null),
                 listener
@@ -87,6 +90,7 @@ public class AgentService {
                 runContext.userId(),
                 runContext.task(),
                 runContext.tools(),
+                runContext.toolExecutionRouter(),
                 conversationContext,
                 skillContext,
                 listener
@@ -98,8 +102,4 @@ public class AgentService {
         return response;
     }
 
-    private List<ToolDefinition> listLlmTools() {
-        return Stream.concat(toolService.listTools().stream(), internalToolService.listTools().stream())
-                .toList();
-    }
 }

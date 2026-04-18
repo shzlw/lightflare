@@ -74,13 +74,15 @@ public class WorkflowController {
 
     @PostMapping
     public Workflow createWorkflow(@RequestBody CreateWorkflowRequest request) {
-        return workflowService.createWorkflow(
+        Workflow workflow = workflowService.createWorkflow(
                 request.name(),
                 request.description(),
                 request.schemaDefinition(),
                 request.status(),
                 null
         );
+        workflowService.createDefaultManualTriggerIfMissing(workflow.getId());
+        return workflow;
     }
 
     @GetMapping

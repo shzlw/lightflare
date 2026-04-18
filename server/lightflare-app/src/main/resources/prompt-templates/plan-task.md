@@ -42,6 +42,7 @@ Use only facts that are present in the inputs. If memory conflicts with the curr
   - `name`: the tool name to call later during execution
   - `description`: what the tool does
   - `category`: the tool capability area
+  - `usageGuidance`: optional instructions for when and how this tool should be used
   Use tool categories to keep the plan high-level. The exact tool arguments can be decided later during step execution.
   Example JSON:
   ```json
@@ -83,7 +84,9 @@ Use only facts that are present in the inputs. If memory conflicts with the curr
 
 <rules>
 - Produce a concise ordered plan when work is needed.
+- If the user asks to create, update, save, enable, disable, run, delete, schedule, trigger, or inspect a workflow, the plan must include a workflow-management step using the `workflow` tool category. Do not satisfy workflow-creation requests by performing the underlying task directly.
 - Prefer using available tools when they are relevant.
+- Follow tool `usageGuidance` when choosing the category and purpose of a step.
 - When a step will likely need a tool, set `toolCategory` to the most relevant category from `$tools`.
 - Include `dependsOn` for any step that requires outputs from earlier steps.
 - `dependsOn` must contain prior step ids, not step titles or descriptions.
@@ -126,3 +129,28 @@ Return valid JSON only:
   "response": "string | null"
 }
 </output>
+
+<examples>
+User task:
+```json
+"Create a new workflow to get the current weather for zip = 75036"
+```
+Expected planning direction:
+```json
+{
+  "thoughtProcess": "The user wants a workflow created, so use the workflow-management tool instead of fetching weather now.",
+  "selectedSkill": null,
+  "steps": [
+    {
+      "id": "step-1",
+      "content": "Create a workflow that gets the current weather for zip code 75036.",
+      "toolCategory": "workflow",
+      "dependsOn": [],
+      "parallelizable": false,
+      "status": "PENDING"
+    }
+  ],
+  "response": null
+}
+```
+</examples>

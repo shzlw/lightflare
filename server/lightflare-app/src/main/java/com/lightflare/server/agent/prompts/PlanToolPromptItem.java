@@ -18,4 +18,6 @@ public class PlanToolPromptItem {
     private String description;
 
     private String category;
+
+    private String usageGuidance;
 }

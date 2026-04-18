@@ -1,5 +1,6 @@
 package com.lightflare.server.agent;
 
+import com.lightflare.server.agent.tool.ToolExecutionRouter;
 import com.lightflare.server.tools.core.ToolDefinition;
 
 import java.util.List;
@@ -11,7 +12,8 @@ public record AgentRunContext(
         String referenceId,
         String userId,
         String task,
-        List<ToolDefinition> tools
+        List<ToolDefinition> tools,
+        ToolExecutionRouter toolExecutionRouter
 ) {
 
     public static final String EXECUTION_TYPE_CHAT = "agent_chat";

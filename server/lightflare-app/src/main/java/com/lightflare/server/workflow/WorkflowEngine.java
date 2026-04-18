@@ -55,9 +55,12 @@ public class WorkflowEngine {
                           String sourceId,
                           String triggerId) {
         Workflow workflow = workflowService.getWorkflow(workflowId);
+        if ("disabled".equalsIgnoreCase(workflow.getStatus())) {
+            throw new IllegalStateException("Workflow is disabled and cannot be run.");
+        }
         String runId = UUID.randomUUID().toString();
         OffsetDateTime now = OffsetDateTime.now();
-        Map<String, Object> input = initialData != null ? initialData : Collections.emptyMap();
+        Map<String, Object> input = mergeDefaultInputs(workflow, initialData, triggerId);
         runRepository.insertRun(
                 runId,
                 workflow.getId(),
@@ -81,6 +84,54 @@ public class WorkflowEngine {
             runRepository.completeRun(runId, "FAILED", null, e.getMessage(), OffsetDateTime.now());
         }
         return runId;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mergeDefaultInputs(Workflow workflow,
+                                                   Map<String, Object> initialData,
+                                                   String triggerId) {
+        Map<String, Object> merged = new HashMap<>();
+        Object parsedDefinition = JsonUtils.fromJson(workflow.getSchemaDefinition());
+        if (parsedDefinition instanceof Map<?, ?> definitionMap
+                && definitionMap.get("inputs") instanceof List<?> inputs) {
+            for (Object input : inputs) {
+                if (!(input instanceof Map<?, ?> inputMap)) {
+                    continue;
+                }
+                String name = stringValue(inputMap.get("name"));
+                if (StringUtils.hasText(name) && inputMap.containsKey("default")) {
+                    merged.put(name, inputMap.get("default"));
+                }
+            }
+        }
+
+        if (StringUtils.hasText(triggerId)) {
+            WorkflowTrigger trigger = workflowService.getTriggerForWorkflow(workflow.getId(), triggerId);
+            Object parsedConfig = JsonUtils.fromJson(StringUtils.hasText(trigger.getConfigJson())
+                    ? trigger.getConfigJson()
+                    : "{}");
+            if (parsedConfig instanceof Map<?, ?> config) {
+                if (config.get("inputFields") instanceof List<?> inputFields) {
+                    for (Object field : inputFields) {
+                        if (!(field instanceof Map<?, ?> fieldMap)) {
+                            continue;
+                        }
+                        String name = stringValue(fieldMap.get("name"));
+                        if (StringUtils.hasText(name) && fieldMap.containsKey("default")) {
+                            merged.put(name, fieldMap.get("default"));
+                        }
+                    }
+                }
+                if (config.get("input") instanceof Map<?, ?> triggerInput) {
+                    triggerInput.forEach((key, value) -> merged.put(String.valueOf(key), value));
+                }
+            }
+        }
+
+        if (initialData != null) {
+            merged.putAll(initialData);
+        }
+        return merged;
     }
 
     public Object testStep(WorkflowStepDefinition step, Map<String, Object> mockContext) {
@@ -251,7 +302,38 @@ public class WorkflowEngine {
                 JsonUtils.toJson(context != null ? context : Map.of())
         );
         String response = agentTaskService.executeWorkflowStep(executionId, step.resolvedId(), userId, task);
-        return Map.of("text", response != null ? response : "");
+        return parseAgentResponse(response);
+    }
+
+    private Object parseAgentResponse(String content) {
+        if (!StringUtils.hasText(content)) {
+            return Map.of("text", "");
+        }
+        String normalized = stripJsonFence(content.trim());
+        try {
+            Object parsed = JsonUtils.fromJson(normalized);
+            if (parsed instanceof String parsedString && StringUtils.hasText(parsedString)) {
+                String nested = stripJsonFence(parsedString.trim());
+                try {
+                    return JsonUtils.fromJson(nested);
+                } catch (Exception ignored) {
+                    return Map.of("text", parsedString);
+                }
+            }
+            return parsed;
+        } catch (Exception ignored) {
+            return Map.of("text", content);
+        }
+    }
+
+    private String stripJsonFence(String content) {
+        if (!content.startsWith("```")) {
+            return content;
+        }
+        String stripped = content
+                .replaceFirst("^```(?:json)?\\s*", "")
+                .replaceFirst("\\s*```$", "");
+        return stripped.trim();
     }
 
     private Object parseToolResult(String content) {

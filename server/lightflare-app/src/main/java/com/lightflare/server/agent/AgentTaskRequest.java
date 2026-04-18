@@ -3,6 +3,7 @@ package com.lightflare.server.agent;
 import com.lightflare.server.agent.excecution.AgentExecutionListener;
 import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.skill.SkillContext;
+import com.lightflare.server.agent.tool.ToolExecutionRouter;
 import com.lightflare.server.tools.core.ToolDefinition;
 import java.util.List;
 
@@ -14,6 +15,7 @@ public record AgentTaskRequest(
         String userId,
         String task,
         List<ToolDefinition> tools,
+        ToolExecutionRouter toolExecutionRouter,
         ConversationContext conversationContext,
         SkillContext skillContext,
         AgentExecutionListener listener

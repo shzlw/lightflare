@@ -155,6 +155,22 @@ public class WorkflowService {
         return triggerRepository.findByWorkflowId(workflowId);
     }
 
+    @Transactional
+    public WorkflowTrigger createDefaultManualTriggerIfMissing(String workflowId) {
+        Workflow workflow = getWorkflow(workflowId);
+        List<WorkflowTrigger> existingTriggers = triggerRepository.findByWorkflowId(workflowId);
+        if (!existingTriggers.isEmpty()) {
+            return null;
+        }
+        return createTrigger(
+                workflowId,
+                "manual",
+                "Run manually",
+                true,
+                defaultManualTriggerConfig(workflow.getSchemaDefinition())
+        );
+    }
+
     public WorkflowTrigger getTriggerForWorkflow(String workflowId, String triggerId) {
         WorkflowTrigger trigger = triggerRepository.findById(triggerId)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow trigger not found: " + triggerId));
@@ -185,6 +201,21 @@ public class WorkflowService {
             throw new IllegalArgumentException("Workflow definition must be a JSON object.");
         }
         return definition;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String defaultManualTriggerConfig(String schemaDefinition) {
+        Object parsed = JsonUtils.fromJson(StringUtils.hasText(schemaDefinition) ? schemaDefinition : DEFAULT_DEFINITION);
+        List<Object> inputFields = List.of();
+        if (parsed instanceof Map<?, ?> definition
+                && definition.get("inputs") instanceof List<?> inputs) {
+            inputFields = inputs.stream()
+                    .filter(Map.class::isInstance)
+                    .map(input -> new HashMap<>((Map<String, Object>) input))
+                    .map(input -> (Object) input)
+                    .toList();
+        }
+        return JsonUtils.toJson(Map.of("inputFields", inputFields));
     }
 
     private void validateJsonObject(String json, String fallback) {

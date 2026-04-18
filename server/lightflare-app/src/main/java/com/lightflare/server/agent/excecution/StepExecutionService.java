@@ -93,7 +93,7 @@ public class StepExecutionService {
                 throw new IllegalStateException("Step response action must not be null");
             }
             stepResponse = stepResponseCanonicalizer.canonicalize(stepResponse, stepState);
-            stepResponse = toolCallExecutor.normalizeStepResponse(stepResponse);
+            stepResponse = toolCallExecutor.normalizeStepResponse(runContext, stepResponse);
             if (StringUtils.hasText(stepResponse.getThoughtProcess())) {
                 executionListener.onStepProgress(
                         runContext.executionId(),
