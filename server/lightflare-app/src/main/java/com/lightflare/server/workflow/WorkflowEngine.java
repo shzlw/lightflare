@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -19,6 +21,10 @@ import org.springframework.util.StringUtils;
 @Service
 @RequiredArgsConstructor
 public class WorkflowEngine {
+
+    private static final Pattern TEMPLATE_PATTERN = Pattern.compile("\\{\\{\\s*([^{}]+?)\\s*}}");
+    private static final Pattern EXACT_TEMPLATE_PATTERN = Pattern.compile("^\\s*\\{\\{\\s*([^{}]+?)\\s*}}\\s*$");
+    private static final Object UNRESOLVED_TEMPLATE = new Object();
 
     private final WorkflowService workflowService;
     private final WorkflowRunRepository runRepository;
@@ -372,6 +378,11 @@ public class WorkflowEngine {
 
     private Object resolveValue(Object value, Map<String, Object> context) {
         if (value instanceof String stringValue) {
+            Matcher exactMatcher = EXACT_TEMPLATE_PATTERN.matcher(stringValue);
+            if (exactMatcher.matches()) {
+                Object resolved = resolvePath(exactMatcher.group(1), context);
+                return resolved != UNRESOLVED_TEMPLATE ? resolved : stringValue;
+            }
             return resolveText(stringValue, context);
         }
         if (value instanceof Map<?, ?> mapValue) {
@@ -389,32 +400,50 @@ public class WorkflowEngine {
         if (!StringUtils.hasText(value)) {
             return value;
         }
-        String resolved = value;
-        Object inputs = context != null ? context.get("inputs") : null;
-        if (inputs instanceof Map<?, ?> inputMap) {
-            for (Map.Entry<?, ?> entry : inputMap.entrySet()) {
-                resolved = resolved.replace("{{inputs." + entry.getKey() + "}}", String.valueOf(entry.getValue()));
+        Matcher matcher = TEMPLATE_PATTERN.matcher(value);
+        StringBuffer resolved = new StringBuffer();
+        while (matcher.find()) {
+            Object replacement = resolvePath(matcher.group(1), context);
+            if (replacement == UNRESOLVED_TEMPLATE) {
+                matcher.appendReplacement(resolved, Matcher.quoteReplacement(matcher.group(0)));
+            } else {
+                matcher.appendReplacement(resolved, Matcher.quoteReplacement(toTemplateString(replacement)));
             }
         }
-        Object steps = context != null ? context.get("steps") : null;
-        if (steps instanceof Map<?, ?> stepMap) {
-            for (Map.Entry<?, ?> entry : stepMap.entrySet()) {
-                String stepId = String.valueOf(entry.getKey());
-                if (entry.getValue() instanceof Map<?, ?> state) {
-                    Object output = state.get("output");
-                    resolved = resolved.replace("{{steps." + stepId + ".output}}", JsonUtils.toJson(output));
-                    if (output instanceof Map<?, ?> outputMap) {
-                        for (Map.Entry<?, ?> outputEntry : outputMap.entrySet()) {
-                            resolved = resolved.replace(
-                                    "{{steps." + stepId + ".output." + outputEntry.getKey() + "}}",
-                                    String.valueOf(outputEntry.getValue())
-                            );
-                        }
-                    }
-                }
+        matcher.appendTail(resolved);
+        return resolved.toString();
+    }
+
+    private Object resolvePath(String rawPath, Map<String, Object> context) {
+        if (!StringUtils.hasText(rawPath) || context == null) {
+            return UNRESOLVED_TEMPLATE;
+        }
+        String[] segments = rawPath.trim().split("\\.");
+        Object current = context;
+        for (String segment : segments) {
+            if (!StringUtils.hasText(segment)) {
+                return UNRESOLVED_TEMPLATE;
+            }
+            if (current instanceof Map<?, ?> map && map.containsKey(segment)) {
+                current = map.get(segment);
+            } else {
+                return UNRESOLVED_TEMPLATE;
             }
         }
-        return resolved;
+        return current;
+    }
+
+    private String toTemplateString(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof String stringValue) {
+            return stringValue;
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return String.valueOf(value);
+        }
+        return JsonUtils.toJson(value);
     }
 
     private String firstStringValue(Object... values) {

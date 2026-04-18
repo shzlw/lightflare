@@ -54,11 +54,30 @@ Preferred definition_json shape:
   ],
   "steps": [
     {
+      "id": "geocode_location",
+      "name": "Geocode ZIP code",
+      "type": "tool",
+      "toolName": "geocoding",
+      "input": {"location": "{{inputs.zip}}"},
+      "onError": "stop"
+    },
+    {
+      "id": "get_weather",
+      "name": "Get weather forecast",
+      "type": "tool",
+      "toolName": "weather-forecast",
+      "input": {
+        "latitude": "{{steps.geocode_location.output.latitude}}",
+        "longitude": "{{steps.geocode_location.output.longitude}}",
+        "forecast_days": 1
+      },
+      "onError": "stop"
+    },
+    {
       "id": "summarize_weather",
       "name": "Summarize weather",
       "type": "llm",
-      "prompt": "Get the current weather for ZIP code {{inputs.zip}} using available tools if possible, then return temperature, conditions, and a short summary.",
-      "input": {"zip": "{{inputs.zip}}"},
+      "prompt": "Summarize this weather forecast for ZIP code {{inputs.zip}}: {{steps.get_weather.output}}",
       "onError": "stop"
     }
   ]
@@ -70,16 +89,37 @@ Do not drop user-provided constants. Put them in `inputs[].default`, manual trig
 
 <step_types>
 llm:
-  Use for reasoning, summarizing, drafting, classification, decisions, or best-effort tool use at runtime.
-  Prefer llm when the exact runtime tool name is unknown.
+  Use for reasoning, summarizing, drafting, classification, decisions, or formatting prior tool output.
+  Use llm only when the workflow needs reasoning, summarization, transformation, classification, or when the exact runtime tool name/input contract is unknown.
+  Do not use an llm step just to call a known tool.
 
 tool:
-  Use only when the exact tool name and input contract are known.
+  Prefer tool when the exact tool name and input contract are known from the available tool catalog.
   Required fields: id, name, type="tool", toolName, input.
+  For tool-backed tasks, create a direct tool step first, then add a separate llm step only if the user also needs reasoning, summarization, drafting, or formatting of the tool output.
+  Examples: use toolName="web-page-content-extractor" directly for fetching page content; use toolName="http-get" directly for fixed HTTP GET calls; use a qualified MCP tool name like "mcp.<server>.<tool>" when the target MCP tool is known.
 
 condition:
   Use sparingly for simple branch/skip metadata. Prefer linear steps unless the user explicitly asks for if/else behavior.
 </step_types>
+
+<tool_first_policy>
+Prefer deterministic workflow steps over agentic ones.
+If the user request maps to a known tool, generate `type="tool"` with `toolName` and explicit `input` instead of an `llm` prompt that asks the model to use tools.
+Use `type="llm"` after a tool step when the workflow must interpret, summarize, or transform the direct tool output.
+Use `type="llm"` alone only when no exact tool name/input contract is available or the task is primarily reasoning/generation.
+</tool_first_policy>
+
+<template_variables>
+Workflow inputs and previous step outputs can be passed between steps with `{{...}}`.
+Use `{{inputs.name}}` to read workflow input values.
+Use `{{steps.step_id.output}}` to pass the full parsed output from a previous step.
+Use `{{steps.step_id.output.field}}` or deeper paths like `{{steps.step_id.output.content.title}}` to read a specific output field.
+When a tool input value is exactly one template, such as `"payload": "{{steps.fetch_page.output}}"`, the engine passes the parsed object/array/value directly to the tool.
+When a template appears inside surrounding text, such as `"prompt": "Summarize {{steps.fetch_page.output}}"`, the engine renders it as text, using JSON for objects and arrays.
+Prefer step ids with lowercase letters, numbers, and underscores so template references are simple and stable.
+Do not invent output mappings. Reference prior step outputs directly with `{{steps.<id>.output...}}`.
+</template_variables>
 
 <trigger_structures>
 Manual trigger:
@@ -178,11 +218,32 @@ Tool call:
     ],
     "steps": [
       {
+        "id": "geocode_location",
+        "name": "Geocode ZIP code",
+        "type": "tool",
+        "toolName": "geocoding",
+        "input": {
+          "location": "{{inputs.zip}}"
+        },
+        "onError": "stop"
+      },
+      {
         "id": "get_weather",
         "name": "Get current weather",
+        "type": "tool",
+        "toolName": "weather-forecast",
+        "input": {
+          "latitude": "{{steps.geocode_location.output.latitude}}",
+          "longitude": "{{steps.geocode_location.output.longitude}}",
+          "forecast_days": 1
+        },
+        "onError": "stop"
+      },
+      {
+        "id": "summarize_weather",
+        "name": "Summarize current weather",
         "type": "llm",
-        "prompt": "Get the current weather for ZIP code {{inputs.zip}} using available tools if possible, then return temperature, conditions, and a short summary.",
-        "input": {"zip": "{{inputs.zip}}"},
+        "prompt": "Return temperature, conditions, and a short summary for ZIP code {{inputs.zip}} from this forecast output: {{steps.get_weather.output}}",
         "onError": "stop"
       }
     ]
@@ -212,10 +273,20 @@ Tool call:
     "inputs": [],
     "steps": [
       {
+        "id": "fetch_hacker_news",
+        "name": "Fetch Hacker News",
+        "type": "tool",
+        "toolName": "web-page-content-extractor",
+        "input": {
+          "url": "https://news.ycombinator.com/"
+        },
+        "onError": "stop"
+      },
+      {
         "id": "summarize_hacker_news",
         "name": "Summarize top Hacker News stories",
         "type": "llm",
-        "prompt": "Go to https://news.ycombinator.com/, get the top 3 stories, and summarize them concisely.",
+        "prompt": "From this Hacker News page content, identify the top 3 stories and summarize them concisely: {{steps.fetch_hacker_news.output}}",
         "onError": "stop"
       }
     ]
