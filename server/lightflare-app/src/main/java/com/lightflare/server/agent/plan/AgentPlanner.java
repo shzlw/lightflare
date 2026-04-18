@@ -3,8 +3,8 @@ package com.lightflare.server.agent.plan;
 import com.lightflare.server.agent.excecution.StepExecutionContext;
 import com.lightflare.server.agent.excecution.PlanContinuationDecision;
 import com.lightflare.server.agent.excecution.ResponseResolution;
-import com.lightflare.server.agent.memory.ChatSessionUsageService;
 import com.lightflare.server.agent.prompts.*;
+import com.lightflare.server.agent.usage.AgentUsageRecorder;
 import com.lightflare.server.llmproviders.core.LLMFinalResponse;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import com.lightflare.server.llmproviders.core.LLMProvider;
@@ -27,17 +27,18 @@ public class AgentPlanner {
     private static final String LOG_STAGE = "LLM_PLAN";
 
     private final LLMProvider llmProvider;
-    private final ChatSessionUsageService chatSessionUsageService;
+    private final AgentUsageRecorder agentUsageRecorder;
 
-    public LLMPlanResponse plan(String sessionId,
+    public LLMPlanResponse plan(String executionId,
+                                String executionType,
                                 String userId,
                                 String task,
                                 List<MemoryPromptItem> memoryList,
                                 List<SkillPromptItem> skills,
                                 List<ToolDefinition> tools) {
-        log.info("[{}][PLAN_REQUEST] sessionId={}, memoryCount={}, skillCount={}, toolCount={}",
+        log.info("[{}][PLAN_REQUEST] executionId={}, memoryCount={}, skillCount={}, toolCount={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 memoryList != null ? memoryList.size() : 0,
                 skills != null ? skills.size() : 0,
                 tools != null ? tools.size() : 0);
@@ -52,26 +53,27 @@ public class AgentPlanner {
 
         String ask = JsonUtils.toJson(promptRequest);
         LLMResponse<LLMPlanResponse> llmResponse = llmProvider.getStructuredResponse(ask, LLMPlanResponse.class);
-        chatSessionUsageService.recordLlmUsage(sessionId, userId, llmResponse);
-        log.info("[{}][PLAN_RESPONSE] sessionId={}, stepCount={}, hasResponse={}",
+        agentUsageRecorder.recordLlmUsage(executionId, executionType, userId, llmResponse);
+        log.info("[{}][PLAN_RESPONSE] executionId={}, stepCount={}, hasResponse={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 llmResponse.getOutputData() != null && llmResponse.getOutputData().getSteps() != null
                         ? llmResponse.getOutputData().getSteps().size() : 0,
                 llmResponse.getOutputData() != null && llmResponse.getOutputData().getResponse() != null);
         return llmResponse.getOutputData();
     }
 
-    public LLMStepResponse executeStep(String sessionId,
+    public LLMStepResponse executeStep(String executionId,
+                                       String executionType,
                                        String userId,
                                        StepExecutionContext executionContext,
                                        LLMPlanResponse.PlanStep currentStep,
                                        StepExecutionStatePrompt stepState,
                                        List<String> dependencyContext,
                                        List<String> stepExecutionLog) {
-        log.info("[{}][STEP_REQUEST] sessionId={}, stepId={}, selectedSkill={}, dependencyContextSize={}, stepExecutionLogSize={}",
+        log.info("[{}][STEP_REQUEST] executionId={}, stepId={}, selectedSkill={}, dependencyContextSize={}, stepExecutionLogSize={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 currentStep != null ? currentStep.getId() : null,
                 executionContext != null ? executionContext.selectedSkillName() : null,
                 dependencyContext != null ? dependencyContext.size() : 0,
@@ -89,16 +91,17 @@ public class AgentPlanner {
 
         String ask = JsonUtils.toJson(promptRequest);
         LLMResponse<LLMStepResponse> llmResponse = llmProvider.getStructuredResponse(ask, LLMStepResponse.class);
-        chatSessionUsageService.recordLlmUsage(sessionId, userId, llmResponse);
-        log.info("[{}][STEP_RESPONSE] sessionId={}, stepId={}, action={}",
+        agentUsageRecorder.recordLlmUsage(executionId, executionType, userId, llmResponse);
+        log.info("[{}][STEP_RESPONSE] executionId={}, stepId={}, action={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 currentStep != null ? currentStep.getId() : null,
                 llmResponse.getOutputData() != null ? llmResponse.getOutputData().getAction() : null);
         return llmResponse.getOutputData();
     }
 
-    public PlanContinuationDecision reviewPlanContinuation(String sessionId,
+    public PlanContinuationDecision reviewPlanContinuation(String executionId,
+                                                           String executionType,
                                                            String userId,
                                                            String task,
                                                            List<LLMPlanResponse.PlanStep> plan,
@@ -106,9 +109,9 @@ public class AgentPlanner {
                                                            List<String> lastWaveExecutionLog,
                                                            boolean hasRunnablePendingSteps,
                                                            boolean hasPendingSteps) {
-        log.info("[{}][CONTINUATION_REVIEW_REQUEST] sessionId={}, stepCount={}, executionLogSize={}, lastWaveLogSize={}, hasRunnablePendingSteps={}, hasPendingSteps={}",
+        log.info("[{}][CONTINUATION_REVIEW_REQUEST] executionId={}, stepCount={}, executionLogSize={}, lastWaveLogSize={}, hasRunnablePendingSteps={}, hasPendingSteps={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 plan != null ? plan.size() : 0,
                 executionLog != null ? executionLog.size() : 0,
                 lastWaveExecutionLog != null ? lastWaveExecutionLog.size() : 0,
@@ -127,20 +130,21 @@ public class AgentPlanner {
             String ask = JsonUtils.toJson(promptRequest);
             LLMResponse<PlanContinuationDecision> llmResponse =
                     llmProvider.getStructuredResponse(ask, PlanContinuationDecision.class);
-            chatSessionUsageService.recordLlmUsage(sessionId, userId, llmResponse);
+            agentUsageRecorder.recordLlmUsage(executionId, executionType, userId, llmResponse);
             PlanContinuationDecision decision = llmResponse.getOutputData();
-            log.info("[{}][CONTINUATION_REVIEW_RESULT] sessionId={}, outcome={}",
+            log.info("[{}][CONTINUATION_REVIEW_RESULT] executionId={}, outcome={}",
                     LOG_STAGE,
-                    sessionId,
+                    executionId,
                     decision != null ? decision.getOutcome() : null);
             return decision;
         } catch (RuntimeException e) {
-            log.warn("[{}][CONTINUATION_REVIEW_FAIL] sessionId={}", LOG_STAGE, sessionId, e);
+            log.warn("[{}][CONTINUATION_REVIEW_FAIL] executionId={}", LOG_STAGE, executionId, e);
             return null;
         }
     }
 
-    public LLMPlanResponse replan(String sessionId,
+    public LLMPlanResponse replan(String executionId,
+                                  String executionType,
                                   String userId,
                                   String task,
                                   List<MemoryPromptItem> memoryList,
@@ -150,9 +154,9 @@ public class AgentPlanner {
                                   List<String> executionLog,
                                   List<String> immutableStepIds,
                                   String replanReason) {
-        log.info("[{}][REPLAN_REQUEST] sessionId={}, currentStepCount={}, executionLogSize={}, immutableStepCount={}",
+        log.info("[{}][REPLAN_REQUEST] executionId={}, currentStepCount={}, executionLogSize={}, immutableStepCount={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 currentPlan != null ? currentPlan.size() : 0,
                 executionLog != null ? executionLog.size() : 0,
                 immutableStepIds != null ? immutableStepIds.size() : 0);
@@ -169,26 +173,27 @@ public class AgentPlanner {
 
         String ask = JsonUtils.toJson(promptRequest);
         LLMResponse<LLMPlanResponse> llmResponse = llmProvider.getStructuredResponse(ask, LLMPlanResponse.class);
-        chatSessionUsageService.recordLlmUsage(sessionId, userId, llmResponse);
+        agentUsageRecorder.recordLlmUsage(executionId, executionType, userId, llmResponse);
         LLMPlanResponse replanResponse = llmResponse.getOutputData();
-        log.info("[{}][REPLAN_RESPONSE] sessionId={}, stepCount={}, hasResponse={}",
+        log.info("[{}][REPLAN_RESPONSE] executionId={}, stepCount={}, hasResponse={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 replanResponse != null && replanResponse.getSteps() != null ? replanResponse.getSteps().size() : 0,
                 replanResponse != null && replanResponse.getResponse() != null);
         return replanResponse;
     }
 
-    public String composeResponse(String sessionId,
+    public String composeResponse(String executionId,
+                                  String executionType,
                                   String userId,
                                   String task,
                                   List<LLMPlanResponse.PlanStep> steps,
                                   List<String> executionLog,
                                   String candidateResponse,
                                   String evaluationFeedback) {
-        log.info("[{}][RESPONSE_REQUEST] sessionId={}, stepCount={}, executionLogSize={}",
+        log.info("[{}][RESPONSE_REQUEST] executionId={}, stepCount={}, executionLogSize={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 steps != null ? steps.size() : 0,
                 executionLog != null ? executionLog.size() : 0);
         ResolveResponsePromptRequest promptRequest = new ResolveResponsePromptRequest();
@@ -202,28 +207,29 @@ public class AgentPlanner {
         try {
             String ask = JsonUtils.toJson(promptRequest);
             LLMResponse<LLMFinalResponse> llmResponse = llmProvider.getStructuredResponse(ask, LLMFinalResponse.class);
-            chatSessionUsageService.recordLlmUsage(sessionId, userId, llmResponse);
+            agentUsageRecorder.recordLlmUsage(executionId, executionType, userId, llmResponse);
             LLMFinalResponse finalResponse = llmResponse.getOutputData();
-            log.info("[{}][RESPONSE_RESULT] sessionId={}, hasResponse={}",
+            log.info("[{}][RESPONSE_RESULT] executionId={}, hasResponse={}",
                     LOG_STAGE,
-                    sessionId,
+                    executionId,
                     finalResponse != null && finalResponse.getResponse() != null);
             return finalResponse != null ? finalResponse.getResponse() : null;
         } catch (RuntimeException e) {
-            log.warn("[{}][RESPONSE_FAIL] sessionId={}", LOG_STAGE, sessionId, e);
+            log.warn("[{}][RESPONSE_FAIL] executionId={}", LOG_STAGE, executionId, e);
             return null;
         }
     }
 
-    public ResponseResolution reviewResponse(String sessionId,
+    public ResponseResolution reviewResponse(String executionId,
+                                             String executionType,
                                              String userId,
                                              String task,
                                              List<LLMPlanResponse.PlanStep> steps,
                                              List<String> executionLog,
                                              String candidateResponse) {
-        log.info("[{}][RESPONSE_REVIEW_REQUEST] sessionId={}, stepCount={}, executionLogSize={}, candidateLength={}",
+        log.info("[{}][RESPONSE_REVIEW_REQUEST] executionId={}, stepCount={}, executionLogSize={}, candidateLength={}",
                 LOG_STAGE,
-                sessionId,
+                executionId,
                 steps != null ? steps.size() : 0,
                 executionLog != null ? executionLog.size() : 0,
                 candidateResponse != null ? candidateResponse.length() : 0);
@@ -238,15 +244,15 @@ public class AgentPlanner {
             String ask = JsonUtils.toJson(promptRequest);
             LLMResponse<ResponseResolution> llmResponse =
                     llmProvider.getStructuredResponse(ask, ResponseResolution.class);
-            chatSessionUsageService.recordLlmUsage(sessionId, userId, llmResponse);
+            agentUsageRecorder.recordLlmUsage(executionId, executionType, userId, llmResponse);
             ResponseResolution resolution = llmResponse.getOutputData();
-            log.info("[{}][RESPONSE_REVIEW_RESULT] sessionId={}, outcome={}",
+            log.info("[{}][RESPONSE_REVIEW_RESULT] executionId={}, outcome={}",
                     LOG_STAGE,
-                    sessionId,
+                    executionId,
                     resolution != null ? resolution.getOutcome() : null);
             return resolution;
         } catch (RuntimeException e) {
-            log.warn("[{}][RESPONSE_REVIEW_FAIL] sessionId={}", LOG_STAGE, sessionId, e);
+            log.warn("[{}][RESPONSE_REVIEW_FAIL] executionId={}", LOG_STAGE, executionId, e);
             return null;
         }
     }

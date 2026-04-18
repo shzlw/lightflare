@@ -6,7 +6,7 @@ import lombok.Builder;
 
 @Builder
 public record ChatStreamStepCompletedEvent(
-        String sessionId,
+        String executionId,
         LLMPlanResponse.PlanStep step,
         String status,
         String terminalResponse,

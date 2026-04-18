@@ -5,7 +5,7 @@ import lombok.Builder;
 @Builder
 public record ChatStreamMessageStartEvent(
         String messageId,
-        String sessionId,
+        String executionId,
         String source
 ) implements ChatStreamEventPayload {
 }

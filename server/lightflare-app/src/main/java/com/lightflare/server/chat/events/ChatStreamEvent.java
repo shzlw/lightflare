@@ -5,7 +5,7 @@ import lombok.Builder;
 @Builder
 public record ChatStreamEvent(
         ChatStreamEventType type,
-        String sessionId,
+        String executionId,
         ChatStreamEventPayload payload
 ) {
 }

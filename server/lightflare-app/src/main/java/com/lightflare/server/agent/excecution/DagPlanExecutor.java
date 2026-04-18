@@ -39,7 +39,7 @@ public class DagPlanExecutor {
         if (readySteps.isEmpty()) {
             log.info("[{}][READY_NONE] sessionId={}, pendingStepCount={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     planDag.steps().stream()
                             .filter(step -> step != null && step.getStatus() == LLMPlanResponse.PlanStep.Status.PENDING)
                             .count());
@@ -50,7 +50,7 @@ public class DagPlanExecutor {
         planDag.markRunning(parallelSteps);
         log.info("[{}][PARALLEL_START] sessionId={}, readyStepCount={}, parallelStepCount={}, parallelStepIds={}",
                 LOG_STAGE,
-                runContext.sessionId(),
+                runContext.executionId(),
                 readySteps.size(),
                 parallelSteps.size(),
                 parallelSteps.stream().map(LLMPlanResponse.PlanStep::getId).toList());
@@ -60,7 +60,7 @@ public class DagPlanExecutor {
     public void markBlockedStepsAsFailed(PlanDag planDag,
                                          List<String> executionLog,
                                          AgentExecutionListener listener,
-                                         String sessionId) {
+                                         String executionId) {
         for (LLMPlanResponse.PlanStep step : planDag.steps()) {
             if (step == null || step.getStatus() != LLMPlanResponse.PlanStep.Status.PENDING) {
                 continue;
@@ -74,7 +74,7 @@ public class DagPlanExecutor {
                     "Status=FAILED unresolvedDependencies=" + unresolvedDependencies
             ));
             listener.onStepCompleted(
-                    sessionId,
+                    executionId,
                     clonePlanStep(step),
                     LLMPlanResponse.PlanStep.Status.FAILED.name(),
                     null,
@@ -120,7 +120,7 @@ public class DagPlanExecutor {
                                                           List<String> executionLog,
                                                           AgentExecutionListener listener) {
         StepExecutionContext executionContext = new StepExecutionContext(
-                runContext.sessionId(),
+                runContext.executionId(),
                 runContext.userId(),
                 runContext.task(),
                 conversationContext.promptMemories(),
@@ -148,7 +148,7 @@ public class DagPlanExecutor {
                     .toList();
             log.info("[{}][PARALLEL_DONE] sessionId={}, parallelStepCount={}, resultStatuses={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     parallelSteps.size(),
                     results.stream().collect(Collectors.toMap(
                             StepExecutionResult::stepId,

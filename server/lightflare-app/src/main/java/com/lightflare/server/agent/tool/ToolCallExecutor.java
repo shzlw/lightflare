@@ -44,7 +44,7 @@ public class ToolCallExecutor {
         if (!executedToolCallSignatures.add(toolCallSignature)) {
             log.info("[{}][DEDUPE_BLOCK] sessionId={}, stepId={}, signature={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     step.getId(),
                     toolCallSignature);
             String duplicateMessage = planStepFormatter.formatStepEntry(
@@ -58,7 +58,7 @@ public class ToolCallExecutor {
 
         log.info("[{}][CALL_START] sessionId={}, stepId={}, toolName={}, parameterCount={}",
                 LOG_STAGE,
-                runContext.sessionId(),
+                runContext.executionId(),
                 step.getId(),
                 stepResponse.getToolCall() != null ? stepResponse.getToolCall().getToolName() : null,
                 stepResponse.getToolCall() != null && stepResponse.getToolCall().getArguments() != null
@@ -67,7 +67,7 @@ public class ToolCallExecutor {
         ToolResult toolResult = executeToolCall(runContext, stepResponse.getToolCall());
         log.info("[{}][CALL_RESULT] sessionId={}, stepId={}, toolName={}, success={}",
                 LOG_STAGE,
-                runContext.sessionId(),
+                runContext.executionId(),
                 step.getId(),
                 stepResponse.getToolCall() != null ? stepResponse.getToolCall().getToolName() : null,
                 toolResult.success());

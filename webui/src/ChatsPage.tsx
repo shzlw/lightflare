@@ -84,36 +84,38 @@ type ChatStreamEventType =
 
 type ChatStreamEvent<T = unknown> = {
   type: ChatStreamEventType
-  sessionId: string
+  executionId: string
   payload: T
 }
 
 type ChatStreamMessageStartEvent = {
   messageId: string
-  sessionId: string
+  executionId: string
   source: string
 }
 
 type ChatStreamMessageCompleteEvent = {
   messageId: string
-  sessionId: string
+  executionId: string
   source: string
   content: string
   createdAt: string | null
 }
 
 type ChatStreamMessageErrorEvent = {
-  sessionId: string
+  executionId: string
   message: string
 }
 
 type ChatStreamPlanCreatedEvent = {
+  executionId: string
   thoughtProcess: string | null
   selectedSkill: string | null
   steps: Array<{ id: string; content: string; status: string | null }>
 }
 
 type ChatStreamStepEvent = {
+  executionId: string
   step: { id: string; content: string; status: string | null } | null
 }
 
@@ -655,7 +657,7 @@ export default function ChatsPage() {
               break
             }
             case 'FINAL_RESPONSE': {
-              const payload = data.payload as { content: string | null }
+              const payload = data.payload as { executionId: string; content: string | null }
               setStreamEvents((current) => [
                 ...current,
                 { id: crypto.randomUUID(), type: 'final_response', content: payload.content },
@@ -1251,21 +1253,12 @@ export default function ChatsPage() {
                     Hide
                   </Button>
                 </div>
-                <Select
-                  value={selectedWorkflowId ?? ''}
-                  onValueChange={(value) => setSelectedWorkflowId(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select workflow" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workflows.map((workflow) => (
-                      <SelectItem key={workflow.id} value={workflow.id}>
-                        {workflow.name || 'Untitled workflow'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {selectedWorkflow ? (
+                  <div className="rounded-lg border border-border/40 bg-muted/30 p-3">
+                    <p className="text-sm font-semibold">{selectedWorkflow.name || 'Untitled workflow'}</p>
+                    <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{selectedWorkflow.id}</p>
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">

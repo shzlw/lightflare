@@ -6,7 +6,6 @@ import com.lightflare.server.agent.plan.AgentPlanner;
 import com.lightflare.server.agent.skill.SkillContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
 import com.lightflare.server.config.AgentProperties;
-import com.lightflare.server.chat.CreateChatRequest;
 import com.lightflare.server.execution.ExecutionCheckpoint;
 import com.lightflare.server.skill.Skill;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
@@ -42,25 +41,33 @@ public class AgentExecutionService {
     private final AgentProperties agentProperties;
     private final AgentExecutionCheckpointService checkpointService;
 
-    public boolean hasResumableCheckpoint(String sessionId) {
-        return StringUtils.hasText(sessionId) && checkpointService.findResumableChatCheckpoint(sessionId).isPresent();
+    public boolean hasResumableCheckpoint(String executionType, String referenceType, String referenceId) {
+        return StringUtils.hasText(executionType)
+                && StringUtils.hasText(referenceType)
+                && StringUtils.hasText(referenceId)
+                && checkpointService.findResumableCheckpoint(executionType, referenceType, referenceId).isPresent();
     }
 
-    public String resume(String sessionId,
+    public String resume(String executionType,
+                         String referenceType,
+                         String referenceId,
                          List<ToolDefinition> tools,
                          AgentExecutionListener listener) {
         AgentExecutionListener executionListener = listener != null ? listener : AgentExecutionListener.NOOP;
-        ExecutionCheckpoint storedCheckpoint = checkpointService.findResumableChatCheckpoint(sessionId)
-                .orElseThrow(() -> new IllegalStateException("No resumable execution checkpoint found for sessionId=" + sessionId));
+        ExecutionCheckpoint storedCheckpoint = checkpointService.findResumableCheckpoint(executionType, referenceType, referenceId)
+                .orElseThrow(() -> new IllegalStateException("No resumable execution checkpoint found for referenceId=" + referenceId));
         AgentRunCheckpoint checkpoint = checkpointService.parse(storedCheckpoint);
         resetRunningSteps(checkpoint.safeSteps());
 
-        CreateChatRequest request = new CreateChatRequest();
-        request.setSessionId(checkpoint.getSessionId());
-        request.setUserId(checkpoint.getUserId());
-        request.setData(checkpoint.getTask());
-
-        AgentRunContext runContext = new AgentRunContext(request, tools);
+        AgentRunContext runContext = new AgentRunContext(
+                checkpoint.getExecutionId(),
+                checkpoint.getExecutionType() != null ? checkpoint.getExecutionType() : executionType,
+                checkpoint.getReferenceType() != null ? checkpoint.getReferenceType() : referenceType,
+                checkpoint.getReferenceId(),
+                checkpoint.getUserId(),
+                checkpoint.getTask(),
+                tools
+        );
         ConversationContext conversationContext = new ConversationContext(null, checkpoint.safePromptMemories());
         SkillContext skillContext = skillSelectionService.buildSkillContext(null);
         PlanDag planDag = planGraphValidator.buildValidatedDag(checkpoint.safeSteps());
@@ -76,13 +83,13 @@ public class AgentExecutionService {
 
         log.info("[{}][RESUME] sessionId={}, checkpointId={}, pendingStepCount={}",
                 LOG_STAGE,
-                sessionId,
+                referenceId,
                 storedCheckpoint.id(),
                 planDag.steps().stream()
                         .filter(step -> step != null && step.getStatus() == LLMPlanResponse.PlanStep.Status.PENDING)
                         .count());
         executionListener.onPlanCreated(
-                runContext.sessionId(),
+                runContext.executionId(),
                 null,
                 checkpoint.getSelectedSkillName(),
                 cloneSteps(planDag.steps())
@@ -110,7 +117,7 @@ public class AgentExecutionService {
         AgentExecutionListener executionListener = listener != null ? listener : AgentExecutionListener.NOOP;
         log.info("[{}][START] sessionId={}, taskLength={}, toolCount={}, memoryCount={}, skillCount={}",
                 LOG_STAGE,
-                runContext.sessionId(),
+                runContext.executionId(),
                 runContext.task() != null ? runContext.task().length() : 0,
                 runContext.tools().size(),
                 conversationContext.promptMemories().size(),
@@ -118,7 +125,8 @@ public class AgentExecutionService {
 
         // Call LLM to get the plan with steps
         LLMPlanResponse planResponse = agentPlanner.plan(
-                runContext.sessionId(),
+                runContext.executionId(),
+                runContext.executionType(),
                 runContext.userId(),
                 runContext.task(),
                 conversationContext.promptMemories(),
@@ -130,14 +138,14 @@ public class AgentExecutionService {
         }
         normalizePlannerResponse(planResponse);
         executionListener.onPlanCreated(
-                runContext.sessionId(),
+                runContext.executionId(),
                 planResponse.getThoughtProcess(),
                 planResponse.getSelectedSkill(),
                 cloneSteps(planResponse.getSteps())
         );
         log.info("[{}][PLAN_RECEIVED] sessionId={}, hasResponse={}, stepCount={}, selectedSkill={}",
                 LOG_STAGE,
-                runContext.sessionId(),
+                runContext.executionId(),
                 StringUtils.hasText(planResponse.getResponse()),
                 CollectionUtils.isEmpty(planResponse.getSteps()) ? 0 : planResponse.getSteps().size(),
                 planResponse.getSelectedSkill());
@@ -145,17 +153,17 @@ public class AgentExecutionService {
         if (StringUtils.hasText(planResponse.getResponse()) && CollectionUtils.isEmpty(planResponse.getSteps())) {
             log.info("[{}][SHORT_CIRCUIT] sessionId={}, reason=planner-returned-direct-response",
                     LOG_STAGE,
-                    runContext.sessionId());
-            executionListener.onFinalResponse(runContext.sessionId(), planResponse.getResponse());
+                    runContext.executionId());
+            executionListener.onFinalResponse(runContext.executionId(), planResponse.getResponse());
             return planResponse.getResponse();
         }
 
         if (CollectionUtils.isEmpty(planResponse.getSteps())) {
             log.info("[{}][SHORT_CIRCUIT] sessionId={}, reason=planner-returned-no-steps",
                     LOG_STAGE,
-                    runContext.sessionId());
+                    runContext.executionId());
             String response = "No execution steps were produced.";
-            executionListener.onFinalResponse(runContext.sessionId(), response);
+            executionListener.onFinalResponse(runContext.executionId(), response);
             return response;
         }
 
@@ -170,13 +178,13 @@ public class AgentExecutionService {
         if (missingSelectedSkill) {
             log.info("[{}][SKILL_MISSING] sessionId={}, selectedSkill={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
-                    planResponse.getSelectedSkill(), runContext.sessionId());
+                    runContext.executionId(),
+                    planResponse.getSelectedSkill(), runContext.executionId());
         }
         log.info("[{}][SKILL_RESOLVED] sessionId={}, selectedSkill={}",
                 LOG_STAGE,
-                runContext.sessionId(),
-                selectedSkill != null ? selectedSkill.getName() : null, runContext.sessionId());
+                runContext.executionId(),
+                selectedSkill != null ? selectedSkill.getName() : null, runContext.executionId());
 
         List<String> executionLog = new ArrayList<>();
         if (missingSelectedSkill) {
@@ -192,7 +200,10 @@ public class AgentExecutionService {
         );
         AgentRunCheckpoint checkpoint = new AgentRunCheckpoint();
         checkpoint.setTask(runContext.task());
-        checkpoint.setSessionId(runContext.sessionId());
+        checkpoint.setExecutionId(runContext.executionId());
+        checkpoint.setExecutionType(runContext.executionType());
+        checkpoint.setReferenceType(runContext.referenceType());
+        checkpoint.setReferenceId(runContext.referenceId());
         checkpoint.setUserId(runContext.userId());
         checkpoint.setPromptMemories(conversationContext.promptMemories());
 
@@ -231,7 +242,7 @@ public class AgentExecutionService {
                         + agentProperties.getMaxExecutionWaves());
                 log.info("[{}][WAVE_LIMIT_REACHED] sessionId={}, maxExecutionWaves={}",
                         LOG_STAGE,
-                        runContext.sessionId(),
+                        runContext.executionId(),
                         agentProperties.getMaxExecutionWaves());
                 break;
             }
@@ -239,7 +250,7 @@ public class AgentExecutionService {
             List<LLMPlanResponse.PlanStep> parallelSteps = dagPlanExecutor.selectNextParallelSteps(runContext, planDag);
             updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
             for (LLMPlanResponse.PlanStep parallelStep : parallelSteps) {
-                executionListener.onStepStarted(runContext.sessionId(), cloneStep(parallelStep));
+                executionListener.onStepStarted(runContext.executionId(), cloneStep(parallelStep));
             }
             if (parallelSteps.isEmpty()) {
                 PlanContinuationDecision blockedDecision = reviewContinuation(
@@ -261,7 +272,7 @@ public class AgentExecutionService {
                                 ++replanCount
                         );
                         if (StringUtils.hasText(replanResult.directResponse())) {
-                            executionListener.onFinalResponse(runContext.sessionId(), replanResult.directResponse());
+                            executionListener.onFinalResponse(runContext.executionId(), replanResult.directResponse());
                             checkpointService.saveCompleted(checkpointId, checkpoint, replanResult.directResponse());
                             return replanResult.directResponse();
                         }
@@ -274,13 +285,13 @@ public class AgentExecutionService {
                                 + agentProperties.getMaxReplans());
                         log.info("[{}][REPLAN_LIMIT_REACHED] sessionId={}, maxReplans={}",
                                 LOG_STAGE,
-                                runContext.sessionId(),
+                                runContext.executionId(),
                                 agentProperties.getMaxReplans());
                         planDag = markRemainingPendingAsSkipped(
                                 planDag,
                                 executionLog,
                                 executionListener,
-                                runContext.sessionId()
+                                runContext.executionId()
                         );
                         break;
                     }
@@ -288,7 +299,7 @@ public class AgentExecutionService {
                 if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.ASK_USER
                         || blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.CANNOT_COMPLETE) {
                     if (StringUtils.hasText(blockedDecision.getUserMessage())) {
-                        executionListener.onFinalResponse(runContext.sessionId(), blockedDecision.getUserMessage());
+                        executionListener.onFinalResponse(runContext.executionId(), blockedDecision.getUserMessage());
                         checkpointService.saveCompleted(checkpointId, checkpoint, blockedDecision.getUserMessage());
                         return blockedDecision.getUserMessage();
                     }
@@ -298,7 +309,7 @@ public class AgentExecutionService {
                             planDag,
                             executionLog,
                             executionListener,
-                            runContext.sessionId()
+                            runContext.executionId()
                     );
                 }
                 break;
@@ -323,8 +334,8 @@ public class AgentExecutionService {
             if (StringUtils.hasText(terminalResponse)) {
                 log.info("[{}][EARLY_RETURN] sessionId={}, responseLength={}",
                         LOG_STAGE,
-                        runContext.sessionId(), terminalResponse.length());
-                executionListener.onFinalResponse(runContext.sessionId(), terminalResponse);
+                        runContext.executionId(), terminalResponse.length());
+                executionListener.onFinalResponse(runContext.executionId(), terminalResponse);
                 checkpointService.saveCompleted(checkpointId, checkpoint, terminalResponse);
                 return terminalResponse;
             }
@@ -340,7 +351,7 @@ public class AgentExecutionService {
             );
             log.info("[{}][WAVE_REVIEW] sessionId={}, waveNumber={}, outcome={}, rationale={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     waveNumber,
                     decision.getOutcome(),
                     decision.getRationale());
@@ -353,13 +364,13 @@ public class AgentExecutionService {
                                 + agentProperties.getMaxReplans());
                         log.info("[{}][REPLAN_LIMIT_REACHED] sessionId={}, maxReplans={}",
                                 LOG_STAGE,
-                                runContext.sessionId(),
+                                runContext.executionId(),
                                 agentProperties.getMaxReplans());
                         planDag = markRemainingPendingAsSkipped(
                                 planDag,
                                 executionLog,
                                 executionListener,
-                                runContext.sessionId()
+                                runContext.executionId()
                         );
                         break;
                     }
@@ -374,7 +385,7 @@ public class AgentExecutionService {
                             ++replanCount
                     );
                     if (StringUtils.hasText(replanResult.directResponse())) {
-                        executionListener.onFinalResponse(runContext.sessionId(), replanResult.directResponse());
+                        executionListener.onFinalResponse(runContext.executionId(), replanResult.directResponse());
                         checkpointService.saveCompleted(checkpointId, checkpoint, replanResult.directResponse());
                         return replanResult.directResponse();
                     }
@@ -387,12 +398,12 @@ public class AgentExecutionService {
                             planDag,
                             executionLog,
                             executionListener,
-                            runContext.sessionId()
+                            runContext.executionId()
                     );
                 }
                 case ASK_USER, CANNOT_COMPLETE -> {
                     if (StringUtils.hasText(decision.getUserMessage())) {
-                        executionListener.onFinalResponse(runContext.sessionId(), decision.getUserMessage());
+                        executionListener.onFinalResponse(runContext.executionId(), decision.getUserMessage());
                         checkpointService.saveCompleted(checkpointId, checkpoint, decision.getUserMessage());
                         return decision.getUserMessage();
                     }
@@ -400,21 +411,21 @@ public class AgentExecutionService {
                             planDag,
                             executionLog,
                             executionListener,
-                            runContext.sessionId()
+                            runContext.executionId()
                     );
                 }
             }
         }
 
-        dagPlanExecutor.markBlockedStepsAsFailed(planDag, executionLog, executionListener, runContext.sessionId());
+        dagPlanExecutor.markBlockedStepsAsFailed(planDag, executionLog, executionListener, runContext.executionId());
         updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
 
         String finalResponse = responseResolver.resolve(runContext, planDag.steps(), executionLog);
-        executionListener.onFinalResponse(runContext.sessionId(), finalResponse);
+        executionListener.onFinalResponse(runContext.executionId(), finalResponse);
         checkpointService.saveCompleted(checkpointId, checkpoint, finalResponse);
         log.info("[{}][COMPLETE] sessionId={}, finalResponseLength={}",
                 LOG_STAGE,
-                runContext.sessionId(), finalResponse.length());
+                runContext.executionId(), finalResponse.length());
         return finalResponse;
         } catch (RuntimeException exception) {
             checkpointService.saveFailed(checkpointId, checkpoint, exception.getMessage());
@@ -432,7 +443,10 @@ public class AgentExecutionService {
                                   int waveNumber,
                                   int replanCount) {
         checkpoint.setTask(runContext.task());
-        checkpoint.setSessionId(runContext.sessionId());
+        checkpoint.setExecutionId(runContext.executionId());
+        checkpoint.setExecutionType(runContext.executionType());
+        checkpoint.setReferenceType(runContext.referenceType());
+        checkpoint.setReferenceId(runContext.referenceId());
         checkpoint.setUserId(runContext.userId());
         checkpoint.setPromptMemories(conversationContext.promptMemories());
         checkpoint.setSelectedSkillName(selectedSkill != null ? selectedSkill.getName() : checkpoint.getSelectedSkillName());
@@ -460,7 +474,8 @@ public class AgentExecutionService {
                                                         List<String> executionLog,
                                                         List<String> lastWaveExecutionLog) {
         PlanContinuationDecision decision = agentPlanner.reviewPlanContinuation(
-                runContext.sessionId(),
+                runContext.executionId(),
+                runContext.executionType(),
                 runContext.userId(),
                 runContext.task(),
                 planDag.steps(),
@@ -499,7 +514,8 @@ public class AgentExecutionService {
                 .map(LLMPlanResponse.PlanStep::getId)
                 .toList();
         LLMPlanResponse replanResponse = agentPlanner.replan(
-                runContext.sessionId(),
+                runContext.executionId(),
+                runContext.executionType(),
                 runContext.userId(),
                 runContext.task(),
                 conversationContext.promptMemories(),
@@ -516,14 +532,14 @@ public class AgentExecutionService {
                     currentDag,
                     executionLog,
                     executionListener,
-                    runContext.sessionId()
+                    runContext.executionId()
             ), null, null);
         }
         normalizePlannerResponse(replanResponse);
         if (StringUtils.hasText(replanResponse.getResponse()) && CollectionUtils.isEmpty(replanResponse.getSteps())) {
             log.info("[{}][REPLAN_DIRECT_RESPONSE] sessionId={}, responseLength={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     replanResponse.getResponse().length());
             return new ReplanResult(currentDag, null, replanResponse.getResponse());
         }
@@ -537,14 +553,14 @@ public class AgentExecutionService {
         if (mergedSteps.stream().noneMatch(step -> step.getStatus() == LLMPlanResponse.PlanStep.Status.PENDING)) {
             log.info("[{}][REPLAN_EMPTY] sessionId={}, replanCount={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     replanCount);
             return new ReplanResult(planGraphValidator.buildValidatedDag(mergedSteps), null, null);
         }
 
         PlanDag replannedDag = planGraphValidator.buildValidatedDag(mergedSteps);
         executionListener.onPlanCreated(
-                runContext.sessionId(),
+                runContext.executionId(),
                 replanResponse.getThoughtProcess(),
                 replanResponse.getSelectedSkill(),
                 cloneSteps(replannedDag.steps())
@@ -555,7 +571,7 @@ public class AgentExecutionService {
         );
         log.info("[{}][REPLAN_APPLIED] sessionId={}, replanCount={}, stepCount={}, pendingStepCount={}",
                 LOG_STAGE,
-                runContext.sessionId(),
+                runContext.executionId(),
                 replanCount,
                 replannedDag.steps().size(),
                 replannedDag.steps().stream()
@@ -661,7 +677,7 @@ public class AgentExecutionService {
     private PlanDag markRemainingPendingAsSkipped(PlanDag planDag,
                                                   List<String> executionLog,
                                                   AgentExecutionListener listener,
-                                                  String sessionId) {
+                                                  String executionId) {
         for (LLMPlanResponse.PlanStep step : planDag.steps()) {
             if (step == null || step.getStatus() != LLMPlanResponse.PlanStep.Status.PENDING) {
                 continue;
@@ -671,7 +687,7 @@ public class AgentExecutionService {
                     + " Status=FAILED reason=continuation-review-stopped-plan";
             executionLog.add(entry);
             listener.onStepCompleted(
-                    sessionId,
+                    executionId,
                     cloneStep(step),
                     LLMPlanResponse.PlanStep.Status.FAILED.name(),
                     null,

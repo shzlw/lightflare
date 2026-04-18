@@ -50,14 +50,14 @@ public class StepExecutionService {
         for (int attempt = 1; attempt <= maxStepAttempts; attempt++) {
             stepState.setAttemptNumber(attempt);
             executionListener.onStepProgress(
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     cloneStep(step),
                     "ATTEMPT_START",
                     "Attempt " + attempt + " of " + maxStepAttempts
             );
             log.info("[{}][ATTEMPT_START] sessionId={}, stepId={}, attempt={}/{}, stepTitle={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     step.getId(),
                     attempt,
                     maxStepAttempts,
@@ -65,7 +65,8 @@ public class StepExecutionService {
             LLMStepResponse stepResponse;
             try {
                 stepResponse = agentPlanner.executeStep(
-                        runContext.sessionId(),
+                        runContext.executionId(),
+                        runContext.executionType(),
                         runContext.userId(),
                         executionContext,
                         step,
@@ -75,7 +76,7 @@ public class StepExecutionService {
                 );
             } catch (Exception e) {
                 log.error("[{}][STEP_EXEC_ERROR] sessionId={}, stepId={}, error={}",
-                        LOG_STAGE, runContext.sessionId(), step.getId(), e.getMessage(), e);
+                        LOG_STAGE, runContext.executionId(), step.getId(), e.getMessage(), e);
                 String errorEntry = planStepFormatter.formatStepEntry(step, "ERROR", "Unexpected execution error: " + e.getMessage());
                 runEntries.add(errorEntry);
                 return finalizeStepResult(
@@ -84,7 +85,7 @@ public class StepExecutionService {
                         runEntries,
                         "Execution error: " + e.getMessage(),
                         executionListener,
-                        runContext.sessionId()
+                        runContext.executionId()
                 );
             }
 
@@ -95,7 +96,7 @@ public class StepExecutionService {
             stepResponse = toolCallExecutor.normalizeStepResponse(stepResponse);
             if (StringUtils.hasText(stepResponse.getThoughtProcess())) {
                 executionListener.onStepProgress(
-                        runContext.sessionId(),
+                        runContext.executionId(),
                         cloneStep(step),
                         "THOUGHT",
                         stepResponse.getThoughtProcess()
@@ -103,7 +104,7 @@ public class StepExecutionService {
             }
             log.info("[{}][ATTEMPT_RESULT] sessionId={}, stepId={}, action={}, stepComplete={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     step.getId(),
                     stepResponse.getAction(),
                     stepResponse.getStepComplete());
@@ -112,7 +113,7 @@ public class StepExecutionService {
                 case USE_TOOL -> {
                     String toolName = stepResponse.getToolCall() != null ? stepResponse.getToolCall().getToolName() : null;
                     executionListener.onStepProgress(
-                            runContext.sessionId(),
+                            runContext.executionId(),
                             cloneStep(step),
                             "TOOL_CALL",
                             "Calling tool: " + (StringUtils.hasText(toolName) ? toolName : "unknown")
@@ -130,7 +131,7 @@ public class StepExecutionService {
                     stepState.setLatestToolOutcome(toolResult != null && toolResult.success() ? "SUCCESS" : "FAILURE");
                     stepState.setLatestToolResult(toolResult != null ? toolResult.content() : null);
                     executionListener.onStepProgress(
-                            runContext.sessionId(),
+                            runContext.executionId(),
                             cloneStep(step),
                             toolResult != null && toolResult.success() ? "TOOL_SUCCESS" : "TOOL_FAILURE",
                             toolResult != null ? toolResult.content() : "Tool execution returned no result"
@@ -139,14 +140,14 @@ public class StepExecutionService {
                 case REQUEST_TOOL_INPUT -> {
                     String missingInputResponse = toolCallExecutor.buildMissingToolInputResponse(stepResponse);
                     executionListener.onStepProgress(
-                            runContext.sessionId(),
+                            runContext.executionId(),
                             cloneStep(step),
                             "REQUEST_TOOL_INPUT",
                             missingInputResponse
                     );
                     log.info("[{}][MISSING_TOOL_INPUT] sessionId={}, stepId={}, missingInputs={}",
                             LOG_STAGE,
-                            runContext.sessionId(),
+                            runContext.executionId(),
                             step.getId(),
                             stepResponse.getMissingInputs());
                     return finalizeStepResult(
@@ -155,7 +156,7 @@ public class StepExecutionService {
                             runEntries,
                             missingInputResponse,
                             executionListener,
-                            runContext.sessionId()
+                            runContext.executionId()
                     );
                 }
                 case DIRECT_RESPONSE -> {
@@ -164,7 +165,7 @@ public class StepExecutionService {
                         String responseMessage = planStepFormatter.formatStepEntry(step, responseType, stepResponse.getResponse());
                         runEntries.add(responseMessage);
                         executionListener.onStepProgress(
-                                runContext.sessionId(),
+                                runContext.executionId(),
                                 cloneStep(step),
                                 responseType,
                                 stepResponse.getResponse()
@@ -177,7 +178,7 @@ public class StepExecutionService {
                         stepCompleted = true;
                         log.info("[{}][STEP_MARKED_COMPLETE] sessionId={}, stepId={}",
                                 LOG_STAGE,
-                                runContext.sessionId(),
+                                runContext.executionId(),
                                 step.getId());
                     }
                 }
@@ -188,14 +189,14 @@ public class StepExecutionService {
                     String instructionMessage = planStepFormatter.formatStepEntry(step, "DESIGN_INSTRUCTIONS", instructions);
                     runEntries.add(instructionMessage);
                     executionListener.onStepProgress(
-                            runContext.sessionId(),
+                            runContext.executionId(),
                             cloneStep(step),
                             "DESIGN_INSTRUCTIONS",
                             instructions
                     );
                     log.info("[{}][DESIGN_INSTRUCTIONS] sessionId={}, stepId={}, selectedSkill={}",
                             LOG_STAGE,
-                            runContext.sessionId(),
+                            runContext.executionId(),
                             step.getId(),
                             executionContext.selectedSkillName());
                     return finalizeStepResult(
@@ -204,7 +205,7 @@ public class StepExecutionService {
                             runEntries,
                             instructions,
                             executionListener,
-                            runContext.sessionId()
+                            runContext.executionId()
                     );
                 }
             }
@@ -217,7 +218,7 @@ public class StepExecutionService {
         LLMPlanResponse.PlanStep.Status finalStatus = stepCompleted
                 ? LLMPlanResponse.PlanStep.Status.COMPLETED
                 : LLMPlanResponse.PlanStep.Status.FAILED;
-        return finalizeStepResult(step, finalStatus, runEntries, null, executionListener, runContext.sessionId());
+        return finalizeStepResult(step, finalStatus, runEntries, null, executionListener, runContext.executionId());
     }
 
     private StepExecutionResult finalizeStepResult(LLMPlanResponse.PlanStep step,
@@ -225,11 +226,11 @@ public class StepExecutionService {
                                                    List<String> runEntries,
                                                    String terminalResponse,
                                                    AgentExecutionListener listener,
-                                                   String sessionId) {
+                                                   String executionId) {
         List<String> finalEntries = new ArrayList<>(runEntries);
         finalEntries.add(planStepFormatter.formatStepEntry(step, "STEP_STATUS", "Status=" + status));
         listener.onStepCompleted(
-                sessionId,
+                executionId,
                 cloneStep(step),
                 status.name(),
                 terminalResponse,

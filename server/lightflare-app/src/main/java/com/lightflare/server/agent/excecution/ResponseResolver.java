@@ -25,7 +25,8 @@ public class ResponseResolver {
                           List<LLMPlanResponse.PlanStep> steps,
                           List<String> executionLog) {
         String candidateResponse = agentPlanner.composeResponse(
-                runContext.sessionId(),
+                runContext.executionId(),
+                runContext.executionType(),
                 runContext.userId(),
                 runContext.task(),
                 steps,
@@ -40,7 +41,8 @@ public class ResponseResolver {
         int maxResolutionRounds = Math.max(0, agentProperties.getMaxResponseResolutionRounds());
         for (int resolutionRound = 0; resolutionRound <= maxResolutionRounds; resolutionRound++) {
             ResponseResolution resolution = agentPlanner.reviewResponse(
-                    runContext.sessionId(),
+                    runContext.executionId(),
+                    runContext.executionType(),
                     runContext.userId(),
                     runContext.task(),
                     steps,
@@ -50,14 +52,14 @@ public class ResponseResolver {
             if (resolution == null || resolution.getOutcome() == null) {
                 log.warn("[{}][REVIEW_EMPTY] sessionId={}, resolutionRound={}",
                         LOG_STAGE,
-                        runContext.sessionId(),
+                        runContext.executionId(),
                         resolutionRound);
                 return candidateResponse;
             }
 
             log.info("[{}][REVIEW] sessionId={}, resolutionRound={}, outcome={}",
                     LOG_STAGE,
-                    runContext.sessionId(),
+                    runContext.executionId(),
                     resolutionRound,
                     resolution.getOutcome());
 
@@ -75,7 +77,7 @@ public class ResponseResolver {
                     if (resolutionRound >= maxResolutionRounds) {
                         log.info("[{}][RESOLUTION_LIMIT_REACHED] sessionId={}, maxResolutionRounds={}",
                                 LOG_STAGE,
-                                runContext.sessionId(),
+                                runContext.executionId(),
                                 maxResolutionRounds);
                         if (StringUtils.hasText(resolution.getUserMessage())) {
                             return resolution.getUserMessage();
@@ -84,7 +86,8 @@ public class ResponseResolver {
                     }
 
                     String refinedResponse = agentPlanner.composeResponse(
-                            runContext.sessionId(),
+                            runContext.executionId(),
+                            runContext.executionType(),
                             runContext.userId(),
                             runContext.task(),
                             steps,
@@ -95,7 +98,7 @@ public class ResponseResolver {
                     if (!StringUtils.hasText(refinedResponse)) {
                         log.warn("[{}][REFINEMENT_EMPTY] sessionId={}, resolutionRound={}",
                                 LOG_STAGE,
-                                runContext.sessionId(),
+                                runContext.executionId(),
                                 resolutionRound + 1);
                         return candidateResponse;
                     }
@@ -117,16 +120,16 @@ public class ResponseResolver {
 
         if (completedSteps > 0 && failedSteps == 0) {
             log.info("[{}][STATUS_FALLBACK] sessionId={}, result=success, completedSteps={}, failedSteps={}",
-                    LOG_STAGE, runContext.sessionId(), completedSteps, failedSteps);
+                    LOG_STAGE, runContext.executionId(), completedSteps, failedSteps);
             return "Completed all planned steps.";
         }
         if (completedSteps > 0) {
             log.info("[{}][STATUS_FALLBACK] sessionId={}, result=partial, completedSteps={}, failedSteps={}",
-                    LOG_STAGE, runContext.sessionId(), completedSteps, failedSteps);
+                    LOG_STAGE, runContext.executionId(), completedSteps, failedSteps);
             return "Completed " + completedSteps + " planned steps, but " + failedSteps + " steps failed.";
         }
         log.info("[{}][STATUS_FALLBACK] sessionId={}, result=failure, completedSteps=0, failedSteps={}",
-                LOG_STAGE, runContext.sessionId(), failedSteps);
+                LOG_STAGE, runContext.executionId(), failedSteps);
         return "The plan could not be completed.";
     }
 }

@@ -347,7 +347,7 @@ export default function WorkflowPage() {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_380px] overflow-hidden">
+      <main className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[280px_380px_minmax(0,1fr)_400px] overflow-hidden">
         <aside className="min-h-0 border-r border-border/40 flex flex-col">
           <div className="shrink-0 p-4 border-b border-border/40 space-y-3">
             <div className="flex items-center justify-between">
@@ -388,7 +388,7 @@ export default function WorkflowPage() {
           </div>
         </aside>
 
-        <section className="min-h-0 overflow-y-auto p-6 space-y-6">
+        <section className="min-h-0 overflow-y-auto p-4 space-y-5 border-r border-border/40">
           {!workflow ? (
             <div className="h-full flex items-center justify-center text-center text-muted-foreground">
               <div>
@@ -410,13 +410,13 @@ export default function WorkflowPage() {
                       <button
                         key={id}
                         type="button"
-                        className={`text-left rounded-lg border p-4 transition-colors ${selectedStepId === id ? 'border-primary bg-primary/5' : 'border-border/40 hover:bg-muted/40'}`}
+                        className={`text-left rounded-lg border p-3 transition-colors ${selectedStepId === id ? 'border-primary bg-primary/5' : 'border-border/40 hover:bg-muted/40'}`}
                         onClick={() => setSelectedStepId(id)}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="font-semibold">{step.name || id}</p>
-                            <p className="text-sm text-muted-foreground mt-1">{step.prompt || step.toolName || step.actionIdentifier || 'No action configured'}</p>
+                            <p className="font-semibold text-sm">{step.name || id}</p>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{step.prompt || step.toolName || step.actionIdentifier || 'No action configured'}</p>
                           </div>
                           <Badge variant="outline">{step.type || 'step'}</Badge>
                         </div>
@@ -432,9 +432,9 @@ export default function WorkflowPage() {
 
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Triggers</h3>
-                <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-2">
                   {triggers.length ? triggers.map((trigger) => (
-                    <div key={trigger.id} className="rounded-lg border border-border/40 p-4">
+                    <div key={trigger.id} className="rounded-lg border border-border/40 p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-semibold">{trigger.name || trigger.triggerType}</p>
@@ -444,7 +444,7 @@ export default function WorkflowPage() {
                           {trigger.enabled ? 'enabled' : 'disabled'}
                         </Badge>
                       </div>
-                      <pre className="mt-3 text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-48">{formatJson(trigger.configJson)}</pre>
+                      <pre className="mt-3 text-xs overflow-auto rounded-md bg-muted/40 p-3 max-h-40">{formatJson(trigger.configJson)}</pre>
                       {trigger.triggerType === 'manual' ? (
                         <div className="mt-4 space-y-3 border-t border-border/40 pt-4">
                           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Manual Run</p>
@@ -503,13 +503,12 @@ export default function WorkflowPage() {
           )}
         </section>
 
-        <aside className="min-h-0 border-l border-border/40 flex flex-col">
+        <aside className="min-h-0 border-r border-border/40 flex flex-col">
           <div className="shrink-0 p-4 border-b border-border/40">
-            <h3 className="text-sm font-semibold tracking-tight">Details</h3>
+            <h3 className="text-sm font-semibold tracking-tight">Step Detail</h3>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
             <section className="space-y-3">
-              <h4 className="text-sm font-semibold">Selected Step</h4>
               {selectedStep ? (
                 <div className="rounded-lg border border-border/40 p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3">
@@ -520,14 +519,20 @@ export default function WorkflowPage() {
                 </div>
               ) : <p className="text-sm text-muted-foreground">No step selected.</p>}
             </section>
+          </div>
+        </aside>
 
+        <aside className="min-h-0 flex flex-col">
+          <div className="shrink-0 p-4 border-b border-border/40">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold tracking-tight">Execution Logs</h3>
+              <Button variant="ghost" size="sm" disabled={!workflow} onClick={() => void refreshSelectedWorkflow()}>
+                Refresh
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
             <section className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h4 className="text-sm font-semibold">Execution Logs</h4>
-                <Button variant="ghost" size="sm" disabled={!workflow} onClick={() => void refreshSelectedWorkflow()}>
-                  Refresh
-                </Button>
-              </div>
               {runs.length ? (
                 <div className="space-y-2">
                   {runs.map((run) => (

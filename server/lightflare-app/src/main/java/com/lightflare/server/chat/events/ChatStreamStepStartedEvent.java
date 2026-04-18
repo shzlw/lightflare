@@ -5,7 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record ChatStreamStepStartedEvent(
-        String sessionId,
+        String executionId,
         LLMPlanResponse.PlanStep step
 ) implements ChatStreamEventPayload {
 }

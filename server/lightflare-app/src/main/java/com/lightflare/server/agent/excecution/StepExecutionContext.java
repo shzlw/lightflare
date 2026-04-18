@@ -9,7 +9,7 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 
 public record StepExecutionContext(
-        String sessionId,
+        String executionId,
         String userId,
         String task,
         List<MemoryPromptItem> promptMemories,

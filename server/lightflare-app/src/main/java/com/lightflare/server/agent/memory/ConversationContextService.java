@@ -73,14 +73,14 @@ public class ConversationContextService {
      */
     public ConversationContext prepare(AgentRunContext runContext) {
         log.info("Preparing conversation context for sessionId={}, userId={}",
-                runContext.sessionId(), runContext.userId());
+                runContext.executionId(), runContext.userId());
         persistChatMessage(runContext);
         Memory currentMemory = persistChatMessageAsMemory(runContext);
 
         List<Memory> sessionMemories = loadSessionMemories(currentMemory);
-        log.info("Loaded {} session memories for sessionId={}", sessionMemories.size(), runContext.sessionId());
-        if (shouldCompactMemory(runContext.sessionId())) {
-            log.info("Memory compaction triggered for sessionId={}", runContext.sessionId());
+        log.info("Loaded {} session memories for sessionId={}", sessionMemories.size(), runContext.executionId());
+        if (shouldCompactMemory(runContext.executionId())) {
+            log.info("Memory compaction triggered for sessionId={}", runContext.executionId());
             sessionMemories = compactMemory(runContext, currentMemory, sessionMemories);
         }
 
@@ -92,7 +92,7 @@ public class ConversationContextService {
                 .map(this::toContextSearchPromptItem)
                 .toList());
         log.info("Prepared conversation context for sessionId={} with {} prompt memories ({} context search results)",
-                runContext.sessionId(), promptMemories.size(), contextSearchResults.size());
+                runContext.executionId(), promptMemories.size(), contextSearchResults.size());
 
         return new ConversationContext(currentMemory, promptMemories);
     }
@@ -100,13 +100,13 @@ public class ConversationContextService {
     public void persistAssistantResponse(AgentRunContext runContext, String response) {
         if (!StringUtils.hasText(response)) {
             log.info("Skipping assistant response persistence for sessionId={} because response is empty",
-                    runContext.sessionId());
+                    runContext.executionId());
             return;
         }
 
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.setId(UUID.randomUUID().toString());
-        chatMessage.setSessionId(runContext.sessionId());
+        chatMessage.setSessionId(runContext.executionId());
         chatMessage.setSource(CHAT_MESSAGE_SOURCE_LLM);
         chatMessage.setContent(response);
         insertChatMessage(chatMessage);
@@ -114,7 +114,7 @@ public class ConversationContextService {
         Memory memory = new Memory();
         memory.setId(UUID.randomUUID().toString());
         memory.setOwnerUserId(runContext.userId());
-        memory.setSessionId(runContext.sessionId());
+        memory.setSessionId(runContext.executionId());
         memory.setScope(Memory.SCOPE_SESSION);
         memory.setKind(Memory.KIND_CHAT_MESSAGE);
         memory.setRetentionPolicy(Memory.RETENTION_POLICY_COMPACTABLE);
@@ -123,25 +123,25 @@ public class ConversationContextService {
         memory.setContent(response);
         insertMemory(memory);
         log.info("Persisted assistant response for sessionId={}, responseLength={}",
-                runContext.sessionId(), response.length());
+                runContext.executionId(), response.length());
     }
 
     private void persistChatMessage(AgentRunContext runContext) {
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.setId(UUID.randomUUID().toString());
-        chatMessage.setSessionId(runContext.sessionId());
+        chatMessage.setSessionId(runContext.executionId());
         chatMessage.setSource(CHAT_MESSAGE_SOURCE_USER);
         chatMessage.setContent(runContext.task());
         insertChatMessage(chatMessage);
         log.info("Persisted user chat message for sessionId={}, taskLength={}",
-                runContext.sessionId(), runContext.task() != null ? runContext.task().length() : 0);
+                runContext.executionId(), runContext.task() != null ? runContext.task().length() : 0);
     }
 
     private Memory persistChatMessageAsMemory(AgentRunContext runContext) {
         Memory memory = new Memory();
         memory.setId(UUID.randomUUID().toString());
         memory.setOwnerUserId(runContext.userId());
-        memory.setSessionId(runContext.sessionId());
+        memory.setSessionId(runContext.executionId());
         memory.setScope(Memory.SCOPE_SESSION);
         memory.setKind(Memory.KIND_CHAT_MESSAGE);
         memory.setRetentionPolicy(Memory.RETENTION_POLICY_COMPACTABLE);
@@ -149,7 +149,7 @@ public class ConversationContextService {
         memory.setStatus(Memory.STATUS_ACTIVE);
         memory.setContent(runContext.task());
         insertMemory(memory);
-        log.info("Persisted user memory entry id={} for sessionId={}", memory.getId(), runContext.sessionId());
+        log.info("Persisted user memory entry id={} for sessionId={}", memory.getId(), runContext.executionId());
         return memory;
     }
 
@@ -175,7 +175,7 @@ public class ConversationContextService {
 
     private List<Memory> compactMemory(AgentRunContext runContext, Memory currentMemory, List<Memory> memoryList) {
         if (CollectionUtils.isEmpty(memoryList)) {
-            log.info("Skipping memory compaction for sessionId={} because memory list is empty", runContext.sessionId());
+            log.info("Skipping memory compaction for sessionId={} because memory list is empty", runContext.executionId());
             return memoryList;
         }
 
@@ -184,14 +184,14 @@ public class ConversationContextService {
                 .toList();
         if (compactableMemories.isEmpty()) {
             log.info("Skipping memory compaction for sessionId={} because there are no compactable active memories",
-                    runContext.sessionId());
+                    runContext.executionId());
             return memoryList;
         }
 
         List<Memory> memoryToCompactList = new ArrayList<>(
                 compactableMemories.subList(0, Math.min(memoryProperties.getCompactionBatchSize(), compactableMemories.size()))
         );
-        log.info("Compacting {} memories for sessionId={}", memoryToCompactList.size(), runContext.sessionId());
+        log.info("Compacting {} memories for sessionId={}", memoryToCompactList.size(), runContext.executionId());
 
         CompactMemoryPrompt compactMemoryPrompt = new CompactMemoryPrompt();
         compactMemoryPrompt.setPromptDescription(FileUtils.loadPromptTemplate("compact-memory.md"));
@@ -200,22 +200,27 @@ public class ConversationContextService {
                 .toList());
 
         String compactMemoryPromptJson = JsonUtils.toJson(compactMemoryPrompt);
-        lastCompactionAttempt.put(runContext.sessionId(), Instant.now());
+        lastCompactionAttempt.put(runContext.executionId(), Instant.now());
         LLMResponse<LLMGetResponse> compactMemoryResponse = llmProvider.getResponse(compactMemoryPromptJson);
-        chatSessionUsageService.recordLlmUsage(runContext.sessionId(), runContext.userId(), compactMemoryResponse);
+        chatSessionUsageService.recordLlmUsage(
+                runContext.executionId(),
+                runContext.executionType(),
+                runContext.userId(),
+                compactMemoryResponse
+        );
         String compactedContent = compactMemoryResponse.getOutputData() != null
                 ? compactMemoryResponse.getOutputData().getResponse()
                 : null;
         if (!StringUtils.hasText(compactedContent)) {
             log.warn("Skipping memory compaction persistence for sessionId={} because compacted content is empty",
-                    runContext.sessionId());
+                    runContext.executionId());
             return memoryList;
         }
 
         Memory compactedMemory = new Memory();
         compactedMemory.setId(UUID.randomUUID().toString());
         compactedMemory.setOwnerUserId(runContext.userId());
-        compactedMemory.setSessionId(runContext.sessionId());
+        compactedMemory.setSessionId(runContext.executionId());
         compactedMemory.setScope(Memory.SCOPE_SESSION);
         compactedMemory.setKind(Memory.KIND_SUMMARY);
         compactedMemory.setRetentionPolicy(Memory.RETENTION_POLICY_PRESERVE_RAW);
@@ -223,7 +228,7 @@ public class ConversationContextService {
         compactedMemory.setStatus(Memory.STATUS_ACTIVE);
         compactedMemory.setContent(compactedContent);
         insertMemory(compactedMemory);
-        log.info("Persisted compacted memory id={} for sessionId={}", compactedMemory.getId(), runContext.sessionId());
+        log.info("Persisted compacted memory id={} for sessionId={}", compactedMemory.getId(), runContext.executionId());
 
         List<String> toDeleteIds = memoryToCompactList.stream()
                 .map(Memory::getId)
@@ -237,7 +242,7 @@ public class ConversationContextService {
                 Memory.SOURCE_SYSTEM,
                 now
         );
-        log.info("Archived {} compacted memories for sessionId={}", archivedCount, runContext.sessionId());
+        log.info("Archived {} compacted memories for sessionId={}", archivedCount, runContext.executionId());
 
         return loadSessionMemories(currentMemory);
     }

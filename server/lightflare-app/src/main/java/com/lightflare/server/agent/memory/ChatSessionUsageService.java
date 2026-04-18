@@ -1,5 +1,7 @@
 package com.lightflare.server.agent.memory;
 
+import com.lightflare.server.agent.AgentRunContext;
+import com.lightflare.server.agent.usage.AgentUsageRecorder;
 import com.lightflare.server.llmproviders.core.LLMResponse;
 import com.lightflare.server.chat.ChatSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,24 +12,32 @@ import org.springframework.util.StringUtils;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ChatSessionUsageService {
+public class ChatSessionUsageService implements AgentUsageRecorder {
 
     private final ChatSessionRepository chatSessionRepository;
 
-    public void recordLlmUsage(String sessionId, String userId, LLMResponse<?> llmResponse) {
-        if (!StringUtils.hasText(sessionId) || llmResponse == null) {
+    @Override
+    public void recordLlmUsage(String executionId, String executionType, String userId, LLMResponse<?> llmResponse) {
+        if (!StringUtils.hasText(executionId) || llmResponse == null) {
+            return;
+        }
+
+        if (!AgentRunContext.EXECUTION_TYPE_CHAT.equals(executionType)) {
+            log.info("Skipping chat token usage persistence for executionId={}, executionType={}",
+                    executionId,
+                    executionType);
             return;
         }
 
         if (llmResponse.getTotalTokens() == null
                 && llmResponse.getInputTokens() == null
                 && llmResponse.getOutputTokens() == null) {
-            log.info("Skipping token usage persistence for sessionId={} because usage is absent", sessionId);
+            log.info("Skipping token usage persistence for executionId={} because usage is absent", executionId);
             return;
         }
 
         int updated = chatSessionRepository.recordTokenUsage(
-                sessionId,
+                executionId,
                 userId,
                 llmResponse.getTotalTokens(),
                 llmResponse.getInputTokens(),
@@ -38,8 +48,8 @@ public class ChatSessionUsageService {
         }
 
         log.info(
-                "Recorded token usage for sessionId={}, modelName={}, inputTokens={}, outputTokens={}, totalTokens={}",
-                sessionId,
+                "Recorded token usage for executionId={}, modelName={}, inputTokens={}, outputTokens={}, totalTokens={}",
+                executionId,
                 llmResponse.getModelName(),
                 llmResponse.getInputTokens(),
                 llmResponse.getOutputTokens(),

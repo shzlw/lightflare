@@ -6,7 +6,7 @@ import lombok.Builder;
 @Builder
 public record ChatStreamMessageCompleteEvent(
         String messageId,
-        String sessionId,
+        String executionId,
         String source,
         String content,
         OffsetDateTime createdAt

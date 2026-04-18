@@ -19,19 +19,19 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AgentExecutionCheckpointService {
 
-    private static final String EXECUTION_TYPE_AGENT_CHAT = "agent_chat";
-    private static final String REFERENCE_TYPE_CHAT_SESSION = "chat_session";
     private static final String STATUS_RUNNING = "running";
     private static final String STATUS_COMPLETED = "completed";
     private static final String STATUS_FAILED = "failed";
 
     private final ExecutionCheckpointRepository repository;
 
-    public Optional<ExecutionCheckpoint> findResumableChatCheckpoint(String sessionId) {
+    public Optional<ExecutionCheckpoint> findResumableCheckpoint(String executionType,
+                                                                 String referenceType,
+                                                                 String referenceId) {
         return repository.findLatestByReferenceAndStatuses(
-                EXECUTION_TYPE_AGENT_CHAT,
-                REFERENCE_TYPE_CHAT_SESSION,
-                sessionId,
+                executionType,
+                referenceType,
+                referenceId,
                 List.of(STATUS_RUNNING)
         );
     }
@@ -48,7 +48,10 @@ public class AgentExecutionCheckpointService {
         String id = UUID.randomUUID().toString();
         AgentRunCheckpoint payload = new AgentRunCheckpoint();
         payload.setTask(runContext.task());
-        payload.setSessionId(runContext.sessionId());
+        payload.setExecutionId(runContext.executionId());
+        payload.setExecutionType(runContext.executionType());
+        payload.setReferenceType(runContext.referenceType());
+        payload.setReferenceId(runContext.referenceId());
         payload.setUserId(runContext.userId());
         payload.setPromptMemories(conversationContext.promptMemories());
         payload.setSelectedSkillName(selectedSkill != null ? selectedSkill.getName() : null);
@@ -59,11 +62,11 @@ public class AgentExecutionCheckpointService {
         OffsetDateTime now = DateUtils.now();
         int inserted = repository.insert(
                 id,
-                id,
-                EXECUTION_TYPE_AGENT_CHAT,
+                runContext.executionId(),
+                runContext.executionType(),
                 STATUS_RUNNING,
-                REFERENCE_TYPE_CHAT_SESSION,
-                runContext.sessionId(),
+                runContext.referenceType(),
+                runContext.referenceId(),
                 JsonUtils.toJson(payload),
                 now,
                 now

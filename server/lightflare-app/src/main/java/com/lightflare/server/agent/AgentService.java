@@ -1,7 +1,6 @@
 package com.lightflare.server.agent;
 
 import com.lightflare.server.agent.excecution.AgentExecutionListener;
-import com.lightflare.server.agent.excecution.AgentExecutionService;
 import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.memory.ConversationContextService;
 import com.lightflare.server.agent.skill.SkillContext;
@@ -29,7 +28,7 @@ public class AgentService {
     private final InternalToolService internalToolService;
     private final ConversationContextService conversationContextService;
     private final SkillSelectionService skillSelectionService;
-    private final AgentExecutionService agentExecutionService;
+    private final AgentRunnerService agentRunnerService;
 
     public String process(CreateChatRequest request) {
         return process(request, AgentExecutionListener.NOOP);
@@ -39,41 +38,63 @@ public class AgentService {
         Objects.requireNonNull(request, "request must not be null");
         log.info("[{}][START] sessionId={}, userId={}", LOG_STAGE, request.getSessionId(), request.getUserId());
 
-        AgentRunContext runContext = new AgentRunContext(request, listLlmTools());
-        log.info("[{}][TOOLS_READY] sessionId={}, toolCount={}", LOG_STAGE, runContext.sessionId(), runContext.tools().size());
-        if (agentExecutionService.hasResumableCheckpoint(runContext.sessionId())) {
-            log.info("[{}][RESUME] sessionId={} has a running execution checkpoint", LOG_STAGE, runContext.sessionId());
-            String response = agentExecutionService.resume(
-                    runContext.sessionId(),
-                    runContext.tools(),
-                    listener != null ? listener : AgentExecutionListener.NOOP
-            );
+        AgentRunContext runContext = new AgentRunContext(
+                request.getSessionId(),
+                AgentRunContext.EXECUTION_TYPE_CHAT,
+                AgentRunContext.REFERENCE_TYPE_CHAT_SESSION,
+                request.getSessionId(),
+                request.getUserId(),
+                request.getData(),
+                listLlmTools()
+        );
+        log.info("[{}][TOOLS_READY] sessionId={}, toolCount={}", LOG_STAGE, runContext.executionId(), runContext.tools().size());
+        AgentTaskRequest taskRequest = new AgentTaskRequest(
+                runContext.executionId(),
+                runContext.executionType(),
+                runContext.referenceType(),
+                runContext.referenceId(),
+                runContext.userId(),
+                runContext.task(),
+                runContext.tools(),
+                new ConversationContext(null, List.of()),
+                skillSelectionService.buildSkillContext(null),
+                listener
+        );
+        if (agentRunnerService.hasResumableCheckpoint(taskRequest)) {
+            log.info("[{}][RESUME] sessionId={} has a running execution checkpoint", LOG_STAGE, runContext.executionId());
+            String response = agentRunnerService.resume(taskRequest);
             conversationContextService.persistAssistantResponse(runContext, response);
             log.info("[{}][COMPLETE] sessionId={}, responseLength={}",
                     LOG_STAGE,
-                    runContext.sessionId(), response != null ? response.length() : 0);
+                    runContext.executionId(), response != null ? response.length() : 0);
             return response;
         }
 
         ConversationContext conversationContext = conversationContextService.prepare(runContext);
         log.info("[{}][CONTEXT_READY] sessionId={}, promptMemoryCount={}",
                 LOG_STAGE,
-                conversationContext.promptMemories().size(), runContext.sessionId());
+                conversationContext.promptMemories().size(), runContext.executionId());
         SkillContext skillContext = skillSelectionService.buildSkillContext(conversationContext.currentMemory());
         log.info("[{}][SKILLS_READY] sessionId={}, availableSkillCount={}",
                 LOG_STAGE,
-                skillContext.availableSkills().size(), runContext.sessionId());
+                skillContext.availableSkills().size(), runContext.executionId());
 
-        String response = agentExecutionService.execute(
-                runContext,
+        String response = agentRunnerService.execute(new AgentTaskRequest(
+                runContext.executionId(),
+                runContext.executionType(),
+                runContext.referenceType(),
+                runContext.referenceId(),
+                runContext.userId(),
+                runContext.task(),
+                runContext.tools(),
                 conversationContext,
                 skillContext,
-                listener != null ? listener : AgentExecutionListener.NOOP
-        );
+                listener
+        ));
         conversationContextService.persistAssistantResponse(runContext, response);
         log.info("[{}][COMPLETE] sessionId={}, responseLength={}",
                 LOG_STAGE,
-                runContext.sessionId(), response != null ? response.length() : 0);
+                runContext.executionId(), response != null ? response.length() : 0);
         return response;
     }
 

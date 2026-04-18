@@ -6,7 +6,7 @@ import lombok.Builder;
 
 @Builder
 public record ChatStreamPlanCreatedEvent(
-        String sessionId,
+        String executionId,
         String thoughtProcess,
         String selectedSkill,
         List<LLMPlanResponse.PlanStep> steps

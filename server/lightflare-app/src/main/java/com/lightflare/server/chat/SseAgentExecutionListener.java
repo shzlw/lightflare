@@ -29,15 +29,15 @@ public class SseAgentExecutionListener implements AgentExecutionListener {
     }
 
     @Override
-    public void onPlanCreated(String sessionId,
+    public void onPlanCreated(String executionId,
                               String thoughtProcess,
                               String selectedSkill,
                               List<LLMPlanResponse.PlanStep> steps) {
         send(ChatStreamEvent.builder()
                 .type(ChatStreamEventType.PLAN_CREATED)
-                .sessionId(sessionId)
+                .executionId(executionId)
                 .payload(ChatStreamPlanCreatedEvent.builder()
-                        .sessionId(sessionId)
+                        .executionId(executionId)
                         .thoughtProcess(thoughtProcess)
                         .selectedSkill(selectedSkill)
                         .steps(steps)
@@ -46,27 +46,27 @@ public class SseAgentExecutionListener implements AgentExecutionListener {
     }
 
     @Override
-    public void onStepStarted(String sessionId, LLMPlanResponse.PlanStep step) {
+    public void onStepStarted(String executionId, LLMPlanResponse.PlanStep step) {
         send(ChatStreamEvent.builder()
                 .type(ChatStreamEventType.STEP_STARTED)
-                .sessionId(sessionId)
+                .executionId(executionId)
                 .payload(ChatStreamStepStartedEvent.builder()
-                        .sessionId(sessionId)
+                        .executionId(executionId)
                         .step(step)
                         .build())
                 .build());
     }
 
     @Override
-    public void onStepProgress(String sessionId,
+    public void onStepProgress(String executionId,
                                LLMPlanResponse.PlanStep step,
                                String progressType,
                                String message) {
         send(ChatStreamEvent.builder()
                 .type(ChatStreamEventType.STEP_PROGRESS)
-                .sessionId(sessionId)
+                .executionId(executionId)
                 .payload(ChatStreamStepProgressEvent.builder()
-                        .sessionId(sessionId)
+                        .executionId(executionId)
                         .step(step)
                         .progressType(progressType)
                         .message(message)
@@ -75,16 +75,16 @@ public class SseAgentExecutionListener implements AgentExecutionListener {
     }
 
     @Override
-    public void onStepCompleted(String sessionId,
+    public void onStepCompleted(String executionId,
                                 LLMPlanResponse.PlanStep step,
                                 String status,
                                 String terminalResponse,
                                 List<String> executionLogEntries) {
         send(ChatStreamEvent.builder()
                 .type(ChatStreamEventType.STEP_COMPLETED)
-                .sessionId(sessionId)
+                .executionId(executionId)
                 .payload(ChatStreamStepCompletedEvent.builder()
-                        .sessionId(sessionId)
+                        .executionId(executionId)
                         .step(step)
                         .status(status)
                         .terminalResponse(terminalResponse)
@@ -94,12 +94,12 @@ public class SseAgentExecutionListener implements AgentExecutionListener {
     }
 
     @Override
-    public void onFinalResponse(String sessionId, String response) {
+    public void onFinalResponse(String executionId, String response) {
         send(ChatStreamEvent.builder()
                 .type(ChatStreamEventType.FINAL_RESPONSE)
-                .sessionId(sessionId)
+                .executionId(executionId)
                 .payload(ChatStreamFinalResponseEvent.builder()
-                        .sessionId(sessionId)
+                        .executionId(executionId)
                         .content(response)
                         .build())
                 .build());

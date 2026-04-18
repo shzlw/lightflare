@@ -11,7 +11,10 @@ public class AgentRunCheckpoint {
 
     private int schemaVersion = 1;
     private String task;
-    private String sessionId;
+    private String executionId;
+    private String executionType;
+    private String referenceType;
+    private String referenceId;
     private String userId;
     private List<MemoryPromptItem> promptMemories = new ArrayList<>();
     private String selectedSkillName;
@@ -34,4 +37,5 @@ public class AgentRunCheckpoint {
     public List<String> safeExecutionLog() {
         return executionLog != null ? executionLog : List.of();
     }
+
 }

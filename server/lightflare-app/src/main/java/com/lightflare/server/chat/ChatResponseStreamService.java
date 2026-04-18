@@ -62,10 +62,10 @@ public class ChatResponseStreamService {
         try {
             sendEvent(emitter, ChatStreamEvent.builder()
                     .type(ChatStreamEventType.MESSAGE_START)
-                    .sessionId(chatSession.getId())
+                    .executionId(chatSession.getId())
                     .payload(ChatStreamMessageStartEvent.builder()
                             .messageId(assistantMessageId)
-                            .sessionId(chatSession.getId())
+                            .executionId(chatSession.getId())
                             .source(ASSISTANT_SOURCE)
                             .build())
                     .build());
@@ -75,10 +75,10 @@ public class ChatResponseStreamService {
             ChatMessage assistantMessage = findLatestAssistantMessage(chatSession.getId(), assistantResponse);
             sendEvent(emitter, ChatStreamEvent.builder()
                     .type(ChatStreamEventType.MESSAGE_COMPLETE)
-                    .sessionId(chatSession.getId())
+                    .executionId(chatSession.getId())
                     .payload(ChatStreamMessageCompleteEvent.builder()
                             .messageId(assistantMessage != null ? assistantMessage.getId() : assistantMessageId)
-                            .sessionId(chatSession.getId())
+                            .executionId(chatSession.getId())
                             .source(ASSISTANT_SOURCE)
                             .content(assistantMessage != null ? assistantMessage.getContent() : assistantResponse)
                             .createdAt(assistantMessage != null ? assistantMessage.getCreatedAt() : null)
@@ -90,9 +90,9 @@ public class ChatResponseStreamService {
             try {
                 sendEvent(emitter, ChatStreamEvent.builder()
                         .type(ChatStreamEventType.MESSAGE_ERROR)
-                        .sessionId(chatSession.getId())
+                        .executionId(chatSession.getId())
                         .payload(ChatStreamMessageErrorEvent.builder()
-                                .sessionId(chatSession.getId())
+                                .executionId(chatSession.getId())
                                 .message(exception.getMessage() != null ? exception.getMessage() : exception.getClass().getSimpleName())
                                 .build())
                         .build());
