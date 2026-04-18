@@ -15,12 +15,29 @@ class FileUtilsTest {
     }
 
     @Test
+    void shouldLoadToolPromptTemplateFromResources() {
+        String content = FileUtils.loadToolPromptTemplate("sample-tool-template.txt");
+
+        assertEquals("sample tool prompt template\n", content);
+    }
+
+    @Test
     void shouldThrowWhenPromptTemplateDoesNotExist() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> FileUtils.loadPromptTemplate("missing-template.txt")
         );
 
-        assertEquals("Resource not found: prompt-templates/missing-template.txt", exception.getMessage());
+        assertEquals("Resource not found: agent-prompt-templates/missing-template.txt", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenToolPromptTemplateDoesNotExist() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> FileUtils.loadToolPromptTemplate("missing-tool-template.txt")
+        );
+
+        assertEquals("Resource not found: tool-prompt-templates/missing-tool-template.txt", exception.getMessage());
     }
 }

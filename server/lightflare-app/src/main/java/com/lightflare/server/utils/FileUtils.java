@@ -14,8 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @UtilityClass
 public class FileUtils {
 
-    private static final String PROMPT_TEMPLATES_PATH = "prompt-templates/";
+    private static final String PROMPT_TEMPLATES_PATH = "agent-prompt-templates/";
+    private static final String TOOL_PROMPT_TEMPLATES_PATH = "tool-prompt-templates/";
     private static final Map<String, String> PROMPT_TEMPLATE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, String> TOOL_PROMPT_TEMPLATE_CACHE = new ConcurrentHashMap<>();
 
     public String loadResourceAsString(String resourcePath) {
         Resource resource = new ClassPathResource(resourcePath);
@@ -35,6 +37,13 @@ public class FileUtils {
         return PROMPT_TEMPLATE_CACHE.computeIfAbsent(
                 templateName,
                 key -> loadResourceAsString(PROMPT_TEMPLATES_PATH + key)
+        );
+    }
+
+    public String loadToolPromptTemplate(String templateName) {
+        return TOOL_PROMPT_TEMPLATE_CACHE.computeIfAbsent(
+                templateName,
+                key -> loadResourceAsString(TOOL_PROMPT_TEMPLATES_PATH + key)
         );
     }
 }
