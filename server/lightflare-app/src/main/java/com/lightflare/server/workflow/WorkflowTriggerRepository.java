@@ -84,4 +84,11 @@ public interface WorkflowTriggerRepository extends CrudRepository<WorkflowTrigge
             WHERE id = :id
             """)
     int deleteTriggerById(@Param("id") String id);
+
+    @Modifying
+    @Query("""
+            DELETE FROM workflow_trigger
+            WHERE workflow_id = :workflowId
+            """)
+    int deleteByWorkflowId(@Param("workflowId") String workflowId);
 }

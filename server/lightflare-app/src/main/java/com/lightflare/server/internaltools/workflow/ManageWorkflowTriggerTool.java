@@ -64,6 +64,8 @@ public class ManageWorkflowTriggerTool implements InternalTool {
             <scheduler_trigger>
             Use scheduler when the user asks for recurring execution such as every minute, hourly, daily, weekdays, every morning, or every Friday.
             Store scheduler settings only in config_json. Do not create cron columns or standalone scheduler rows.
+            Use Spring cron with 6 fields: second minute hour day-of-month month day-of-week.
+            Every minute is "0 * * * * *". Every morning at 8am is "0 0 8 * * *".
             Required config_json fields: cron, timezone.
             Optional config_json fields: input.
 
@@ -74,8 +76,8 @@ public class ManageWorkflowTriggerTool implements InternalTool {
               "workflow_id": "wf_123",
               "trigger_type": "scheduler",
               "name": "Every minute",
-              "enabled": true,
-              "config_json": {"cron": "* * * * *", "timezone": "America/Chicago", "input": {}}
+              "enabled": false,
+              "config_json": {"cron": "0 * * * * *", "timezone": "America/Chicago", "input": {}}
             }
 
             Every morning:
@@ -84,8 +86,8 @@ public class ManageWorkflowTriggerTool implements InternalTool {
               "workflow_id": "wf_123",
               "trigger_type": "scheduler",
               "name": "Every morning",
-              "enabled": true,
-              "config_json": {"cron": "0 8 * * *", "timezone": "America/Chicago", "input": {}}
+              "enabled": false,
+              "config_json": {"cron": "0 0 8 * * *", "timezone": "America/Chicago", "input": {}}
             }
             </scheduler_trigger>
 
@@ -104,6 +106,8 @@ public class ManageWorkflowTriggerTool implements InternalTool {
             <rules>
             Requires workflow_id because this tool only manages triggers for an already-created workflow.
             If creating the workflow and trigger together, use create-workflow instead so no second call needs the returned workflow_id.
+            For scheduler triggers, use enabled=false unless the user explicitly asks to enable, activate, or start the schedule now.
+            Do not create duplicate scheduler triggers for the same cron/timezone/input.
             </rules>
             """;
 

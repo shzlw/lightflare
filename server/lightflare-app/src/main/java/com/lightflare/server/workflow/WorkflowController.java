@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+import java.util.concurrent.Executor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,14 +18,23 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/v1/workflows")
 public class WorkflowController {
 
     private final WorkflowService workflowService;
     private final WorkflowEngine workflowEngine;
+    private final Executor workflowExecutionExecutor;
+
+    public WorkflowController(WorkflowService workflowService,
+                              WorkflowEngine workflowEngine,
+                              @Qualifier("workflowSchedulerExecutor") Executor workflowExecutionExecutor) {
+        this.workflowService = workflowService;
+        this.workflowEngine = workflowEngine;
+        this.workflowExecutionExecutor = workflowExecutionExecutor;
+    }
 
     public record CreateWorkflowRequest(
             String name,
@@ -66,6 +77,21 @@ public class WorkflowController {
             Map<String, Object> inputData,
             Map<String, Object> initialData,
             String startStepId
+    ) {
+    }
+
+    public record WorkflowStreamEvent(
+            String type,
+            String workflowId,
+            String executionId,
+            String stepRunId,
+            String stepId,
+            String stepName,
+            String stepType,
+            String status,
+            Object input,
+            Object output,
+            String errorMessage
     ) {
     }
 
@@ -179,6 +205,37 @@ public class WorkflowController {
         return ResponseEntity.ok(Map.of("executionId", executionId));
     }
 
+    @PostMapping(value = "/{id}/executions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamExecution(@PathVariable("id") String id,
+                                      @RequestBody(required = false) StartExecutionRequest request) {
+        Map<String, Object> initialData = initialData(request);
+        String startStepId = request != null ? request.startStepId() : null;
+        SseEmitter emitter = new SseEmitter(0L);
+        workflowExecutionExecutor.execute(() -> {
+            WorkflowExecutionListener listener = sseWorkflowExecutionListener(emitter, id);
+            try {
+                workflowEngine.execute(id, initialData, startStepId, null, "manual", null, null, listener);
+                emitter.complete();
+            } catch (Exception exception) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "RUN_FAILED",
+                        id,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "FAILED",
+                        null,
+                        null,
+                        exception.getMessage()
+                ));
+                emitter.completeWithError(exception);
+            }
+        });
+        return emitter;
+    }
+
     @PostMapping("/{id}/triggers/{triggerId}/executions")
     public ResponseEntity<Map<String, String>> startTriggerExecution(@PathVariable("id") String id,
                                                                      @PathVariable("triggerId") String triggerId,
@@ -202,8 +259,144 @@ public class WorkflowController {
         return ResponseEntity.ok(Map.of("executionId", executionId));
     }
 
+    @PostMapping(value = "/{id}/triggers/{triggerId}/executions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamTriggerExecution(@PathVariable("id") String id,
+                                             @PathVariable("triggerId") String triggerId,
+                                             @RequestBody(required = false) StartExecutionRequest request) {
+        WorkflowTrigger trigger = workflowService.getTriggerForWorkflow(id, triggerId);
+        Map<String, Object> initialData = initialData(request);
+        String startStepId = request != null ? request.startStepId() : null;
+        SseEmitter emitter = new SseEmitter(0L);
+        workflowExecutionExecutor.execute(() -> {
+            WorkflowExecutionListener listener = sseWorkflowExecutionListener(emitter, id);
+            try {
+                workflowEngine.execute(
+                        id,
+                        initialData,
+                        startStepId,
+                        null,
+                        trigger.getTriggerType(),
+                        trigger.getId(),
+                        trigger.getId(),
+                        listener
+                );
+                emitter.complete();
+            } catch (Exception exception) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "RUN_FAILED",
+                        id,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        "FAILED",
+                        null,
+                        null,
+                        exception.getMessage()
+                ));
+                emitter.completeWithError(exception);
+            }
+        });
+        return emitter;
+    }
+
     @PostMapping("/test-step")
     public Object testStep(@RequestBody TestStepRequest request) {
         return workflowEngine.testStep(request.step(), request.mockContext());
+    }
+
+    private Map<String, Object> initialData(StartExecutionRequest request) {
+        if (request != null && request.inputData() != null) {
+            return request.inputData();
+        }
+        if (request != null && request.initialData() != null) {
+            return request.initialData();
+        }
+        return Collections.emptyMap();
+    }
+
+    private WorkflowExecutionListener sseWorkflowExecutionListener(SseEmitter emitter, String workflowId) {
+        return new WorkflowExecutionListener() {
+            @Override
+            public void runStarted(String runId) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "RUN_STARTED", workflowId, runId, null, null, null, null, "RUNNING", null, null, null
+                ));
+            }
+
+            @Override
+            public void stepStarted(String runId, String stepRunId, WorkflowStepDefinition step, Map<String, Object> input) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "STEP_STARTED",
+                        workflowId,
+                        runId,
+                        stepRunId,
+                        step.resolvedId(),
+                        step.name(),
+                        step.type(),
+                        "RUNNING",
+                        input,
+                        null,
+                        null
+                ));
+            }
+
+            @Override
+            public void stepCompleted(String runId, String stepRunId, WorkflowStepDefinition step, Object output) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "STEP_COMPLETED",
+                        workflowId,
+                        runId,
+                        stepRunId,
+                        step.resolvedId(),
+                        step.name(),
+                        step.type(),
+                        "COMPLETED",
+                        null,
+                        output,
+                        null
+                ));
+            }
+
+            @Override
+            public void stepFailed(String runId, String stepRunId, WorkflowStepDefinition step, String errorMessage) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "STEP_FAILED",
+                        workflowId,
+                        runId,
+                        stepRunId,
+                        step.resolvedId(),
+                        step.name(),
+                        step.type(),
+                        "FAILED",
+                        null,
+                        null,
+                        errorMessage
+                ));
+            }
+
+            @Override
+            public void runCompleted(String runId, Map<String, Object> output) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "RUN_COMPLETED", workflowId, runId, null, null, null, null, "COMPLETED", null, output, null
+                ));
+            }
+
+            @Override
+            public void runFailed(String runId, String errorMessage) {
+                sendWorkflowEvent(emitter, new WorkflowStreamEvent(
+                        "RUN_FAILED", workflowId, runId, null, null, null, null, "FAILED", null, null, errorMessage
+                ));
+            }
+        };
+    }
+
+    private void sendWorkflowEvent(SseEmitter emitter, WorkflowStreamEvent event) {
+        try {
+            emitter.send(SseEmitter.event().name("workflow_event").data(event));
+        } catch (Exception ignored) {
+            // The client may close the page while a workflow is still finishing.
+        }
     }
 }

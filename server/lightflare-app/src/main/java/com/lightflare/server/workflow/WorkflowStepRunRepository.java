@@ -74,4 +74,15 @@ public interface WorkflowStepRunRepository extends CrudRepository<WorkflowStepRu
             ORDER BY started_at ASC, id ASC
             """)
     List<WorkflowStepRun> findByWorkflowRunId(@Param("workflowRunId") String workflowRunId);
+
+    @Modifying
+    @Query("""
+            DELETE FROM workflow_step_run
+            WHERE workflow_run_id IN (
+                SELECT id
+                FROM workflow_run
+                WHERE workflow_id = :workflowId
+            )
+            """)
+    int deleteByWorkflowId(@Param("workflowId") String workflowId);
 }

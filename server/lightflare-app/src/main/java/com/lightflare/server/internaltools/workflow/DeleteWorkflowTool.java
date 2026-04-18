@@ -16,7 +16,7 @@ public class DeleteWorkflowTool implements InternalTool {
     private static final String USAGE_GUIDANCE = """
             <purpose>
             Use this tool only when the user clearly asks to delete/remove an existing workflow.
-            Deleting a workflow also removes its triggers and run records through database cascade behavior.
+            Deleting a workflow also removes its triggers, runs, and step logs through application cleanup logic.
             </purpose>
 
             <arguments>

@@ -54,10 +54,22 @@ public class WorkflowEngine {
                           String triggerType,
                           String sourceId,
                           String triggerId) {
+        return execute(workflowId, initialData, startStepId, userId, triggerType, sourceId, triggerId, WorkflowExecutionListener.NOOP);
+    }
+
+    public String execute(String workflowId,
+                          Map<String, Object> initialData,
+                          String startStepId,
+                          String userId,
+                          String triggerType,
+                          String sourceId,
+                          String triggerId,
+                          WorkflowExecutionListener listener) {
         Workflow workflow = workflowService.getWorkflow(workflowId);
         if ("disabled".equalsIgnoreCase(workflow.getStatus())) {
             throw new IllegalStateException("Workflow is disabled and cannot be run.");
         }
+        WorkflowExecutionListener executionListener = listener != null ? listener : WorkflowExecutionListener.NOOP;
         String runId = UUID.randomUUID().toString();
         OffsetDateTime now = OffsetDateTime.now();
         Map<String, Object> input = mergeDefaultInputs(workflow, initialData, triggerId);
@@ -76,12 +88,15 @@ public class WorkflowEngine {
                 null,
                 now
         );
+        executionListener.runStarted(runId);
 
         try {
-            Map<String, Object> output = runSteps(runId, workflow, input, startStepId, userId);
+            Map<String, Object> output = runSteps(runId, workflow, input, startStepId, userId, executionListener);
             runRepository.completeRun(runId, "COMPLETED", JsonUtils.toJson(output), null, OffsetDateTime.now());
+            executionListener.runCompleted(runId, output);
         } catch (Exception e) {
             runRepository.completeRun(runId, "FAILED", null, e.getMessage(), OffsetDateTime.now());
+            executionListener.runFailed(runId, e.getMessage());
         }
         return runId;
     }
@@ -143,7 +158,8 @@ public class WorkflowEngine {
                                          Workflow workflow,
                                          Map<String, Object> input,
                                          String startStepId,
-                                         String userId) {
+                                         String userId,
+                                         WorkflowExecutionListener listener) {
         Object parsed = JsonUtils.fromJson(workflow.getSchemaDefinition());
         if (!(parsed instanceof Map<?, ?> definitionMap)) {
             throw new IllegalArgumentException("Workflow definition must be a JSON object.");
@@ -181,6 +197,7 @@ public class WorkflowEngine {
                     startedAt,
                     null
             );
+            listener.stepStarted(runId, stepRunId, step, stepInput);
 
             try {
                 Object output = executeStep(step, stepInput, userId, context);
@@ -190,12 +207,14 @@ public class WorkflowEngine {
                 ((Map<String, Object>) context.get("steps")).put(step.resolvedId(), stepState);
                 finalOutput.put(step.resolvedId(), output);
                 stepRunRepository.completeStepRun(stepRunId, "COMPLETED", JsonUtils.toJson(output), null, OffsetDateTime.now());
+                listener.stepCompleted(runId, stepRunId, step, output);
             } catch (Exception e) {
                 Map<String, Object> stepState = new HashMap<>();
                 stepState.put("input", stepInput);
                 stepState.put("error", e.getMessage());
                 ((Map<String, Object>) context.get("steps")).put(step.resolvedId(), stepState);
                 stepRunRepository.completeStepRun(stepRunId, "FAILED", null, e.getMessage(), OffsetDateTime.now());
+                listener.stepFailed(runId, stepRunId, step, e.getMessage());
                 if (!"continue".equalsIgnoreCase(step.onError())) {
                     throw new IllegalStateException("Workflow step failed: " + step.resolvedId() + ": " + e.getMessage(), e);
                 }

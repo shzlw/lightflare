@@ -61,6 +61,28 @@ export interface WorkflowStepExecution {
   completedAt: string | null;
 }
 
+export type WorkflowStreamEventType =
+  | 'RUN_STARTED'
+  | 'STEP_STARTED'
+  | 'STEP_COMPLETED'
+  | 'STEP_FAILED'
+  | 'RUN_COMPLETED'
+  | 'RUN_FAILED'
+
+export interface WorkflowStreamEvent {
+  type: WorkflowStreamEventType
+  workflowId: string
+  executionId?: string | null
+  stepRunId?: string | null
+  stepId?: string | null
+  stepName?: string | null
+  stepType?: string | null
+  status?: string | null
+  input?: unknown
+  output?: unknown
+  errorMessage?: string | null
+}
+
 export interface WorkflowTrigger {
   id: string
   workflowId: string
@@ -340,6 +362,22 @@ export async function executeWorkflow(
   });
 }
 
+export async function executeWorkflowStream(
+  id: string,
+  inputData: Record<string, unknown> = {},
+  startStepId: string | undefined,
+  onEvent: (event: WorkflowStreamEvent) => void,
+): Promise<void> {
+  return streamRequest<WorkflowStreamEvent>(
+    `/api/v1/workflows/${id}/executions/stream`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ inputData, startStepId }),
+    },
+    ({ data }) => onEvent(data),
+  )
+}
+
 export async function executeWorkflowTrigger(
   workflowId: string,
   triggerId: string,
@@ -350,6 +388,23 @@ export async function executeWorkflowTrigger(
     method: 'POST',
     body: JSON.stringify({ inputData, startStepId }),
   })
+}
+
+export async function executeWorkflowTriggerStream(
+  workflowId: string,
+  triggerId: string,
+  inputData: Record<string, unknown> = {},
+  startStepId: string | undefined,
+  onEvent: (event: WorkflowStreamEvent) => void,
+): Promise<void> {
+  return streamRequest<WorkflowStreamEvent>(
+    `/api/v1/workflows/${workflowId}/triggers/${triggerId}/executions/stream`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ inputData, startStepId }),
+    },
+    ({ data }) => onEvent(data),
+  )
 }
 
 export async function getExecution(executionId: string): Promise<WorkflowExecution> {

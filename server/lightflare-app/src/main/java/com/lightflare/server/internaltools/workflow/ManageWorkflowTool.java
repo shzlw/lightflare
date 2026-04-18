@@ -11,8 +11,10 @@ import com.lightflare.server.workflow.WorkflowEngine;
 import com.lightflare.server.workflow.WorkflowService;
 import com.lightflare.server.workflow.WorkflowTrigger;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -69,7 +71,7 @@ public class ManageWorkflowTool {
 
             delete:
               Required: workflow_id.
-              Delete the workflow and its triggers/runs by cascade.
+              Delete the workflow and related triggers, runs, and step logs.
 
             enable:
               Required: workflow_id, enabled.
@@ -260,9 +262,12 @@ public class ManageWorkflowTool {
             <scheduler_trigger>
             Use scheduler triggers when the user asks for recurring execution, such as every morning, hourly, every Friday, or daily at 9am.
             Store all scheduler data in config_json. Do not create scheduler table rows or standalone scheduler jobs.
+            Use Spring cron with 6 fields: second minute hour day-of-month month day-of-week.
+            Every minute is "0 * * * * *". Every morning at 8am is "0 0 8 * * *".
+            Use enabled=false unless the user explicitly asks to enable, activate, or start the schedule now.
 
             Required config_json fields:
-              - cron: cron expression
+              - cron: Spring cron expression
               - timezone: IANA timezone, for example America/Chicago
 
             Optional config_json fields:
@@ -272,7 +277,7 @@ public class ManageWorkflowTool {
 
             config_json example:
             {
-              "cron": "0 8 * * *",
+              "cron": "0 0 8 * * *",
               "timezone": "America/Chicago",
               "input": {}
             }
@@ -305,9 +310,9 @@ public class ManageWorkflowTool {
                 {
                   "trigger_type": "scheduler",
                   "name": "Every morning",
-                  "enabled": true,
+                  "enabled": false,
                   "config_json": {
-                    "cron": "0 8 * * *",
+                    "cron": "0 0 8 * * *",
                     "timezone": "America/Chicago",
                     "input": {}
                   }
@@ -357,7 +362,7 @@ public class ManageWorkflowTool {
               "action": "upsert",
               "name": "Daily task summary",
               "description": "Summarize open tasks every morning.",
-              "status": "active",
+              "status": "draft",
               "definition_json": {
                 "version": 1,
                 "inputs": [],
@@ -375,9 +380,9 @@ public class ManageWorkflowTool {
                 {
                   "trigger_type": "scheduler",
                   "name": "Every morning",
-                  "enabled": true,
+                  "enabled": false,
                   "config_json": {
-                    "cron": "0 8 * * *",
+                    "cron": "0 0 8 * * *",
                     "timezone": "America/Chicago",
                     "input": {}
                   }
@@ -398,7 +403,6 @@ public class ManageWorkflowTool {
               "workflow_id": "wf_123",
               "name": "Daily task summary",
               "description": "Summarize open tasks every morning and send the summary.",
-              "status": "active",
               "definition_json": {
                 "version": 1,
                 "inputs": [
@@ -464,7 +468,8 @@ public class ManageWorkflowTool {
 
             <status_and_safety>
             Use status=draft for unfinished workflows.
-            Use status=active when the workflow is ready to run.
+            Use status=active only when the user explicitly asks to enable, activate, or start it now.
+            For scheduled workflows, keep status=draft and scheduler enabled=false unless activation is explicit.
             Use action=enable with enabled=false to disable a workflow.
             Do not delete workflows unless the user clearly asks to delete them.
             When updating a workflow, preserve existing ids, inputs, triggers, and steps unless the user asks for a replacement.
@@ -848,9 +853,11 @@ public class ManageWorkflowTool {
         if (triggerDefinitions == null || triggerDefinitions.isEmpty()) {
             return List.of();
         }
+        Set<String> seenTriggers = new HashSet<>();
         return triggerDefinitions.stream()
                 .filter(Map.class::isInstance)
                 .map(item -> (Map<String, Object>) item)
+                .filter(trigger -> seenTriggers.add(triggerKey(trigger)))
                 .map(trigger -> workflowService.createTrigger(
                         workflowId,
                         triggerType(trigger),
@@ -859,6 +866,49 @@ public class ManageWorkflowTool {
                         jsonValue(trigger.get("config_json"), trigger.get("configJson"), trigger.get("config"))
                 ))
                 .toList();
+    }
+
+    private String triggerKey(Map<String, Object> trigger) {
+        String type = triggerType(trigger).trim().toLowerCase();
+        String configJson = jsonValue(trigger.get("config_json"), trigger.get("configJson"), trigger.get("config"));
+        if ("scheduler".equals(type)) {
+            Map<String, Object> config = parseObject(configJson);
+            return String.join("|",
+                    type,
+                    schedulerCronKey(config.get("cron")),
+                    stringValue(config.get("timezone")),
+                    JsonUtils.toJson(config.get("input"))
+            );
+        }
+        return type + "|" + stringValue(trigger.get("name")) + "|" + configJson;
+    }
+
+    private String schedulerCronKey(Object cronValue) {
+        String cron = stringValue(cronValue);
+        if (!StringUtils.hasText(cron)) {
+            return "";
+        }
+        String normalized = cron.trim().replaceAll("\\s+", " ");
+        String[] fields = normalized.split(" ");
+        if (fields.length == 5) {
+            return "0 " + normalized;
+        }
+        if (fields.length == 6 && "*".equals(fields[0])) {
+            return "0 " + String.join(" ", java.util.Arrays.copyOfRange(fields, 1, fields.length));
+        }
+        return normalized;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseObject(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Collections.emptyMap();
+        }
+        Object parsed = JsonUtils.fromJson(json);
+        if (parsed instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Collections.emptyMap();
     }
 
     private String triggerType(Map<String, Object> trigger) {

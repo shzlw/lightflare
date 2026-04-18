@@ -49,7 +49,6 @@ public class UpdateWorkflowTool implements InternalTool {
               "workflow_id": "wf_123",
               "name": "Daily task summary",
               "description": "Summarize tasks and email the summary.",
-              "status": "active",
               "definition_json": {
                 "version": 1,
                 "inputs": [

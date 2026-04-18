@@ -43,7 +43,7 @@ public class CreateWorkflowTool implements InternalTool {
 
             status:
               Optional. Use "draft" unless the user clearly asks to enable/activate it now.
-              Use "active" when the user asks for it to run automatically.
+              For scheduled workflows, still use "draft" unless the user explicitly asks to enable, activate, or start the schedule now.
 
             definition_json:
               Required. JSON object or JSON string using the workflow definition schema below.
@@ -111,12 +111,14 @@ public class CreateWorkflowTool implements InternalTool {
             }
 
             Scheduler trigger:
+            Use Spring cron with 6 fields: second minute hour day-of-month month day-of-week.
+            Every minute is "0 * * * * *". Do not use "* * * * *" in examples.
             {
               "trigger_type": "scheduler",
               "name": "Every minute",
-              "enabled": true,
+              "enabled": false,
               "config_json": {
-                "cron": "* * * * *",
+                "cron": "0 * * * * *",
                 "timezone": "America/Chicago",
                 "input": {"zip": "75036"}
               }
@@ -155,7 +157,7 @@ public class CreateWorkflowTool implements InternalTool {
             {
               "name": "Daily task summary",
               "description": "Summarize open tasks every morning.",
-              "status": "active",
+              "status": "draft",
               "definition_json": {
                 "version": 1,
                 "inputs": [],
@@ -173,8 +175,8 @@ public class CreateWorkflowTool implements InternalTool {
                 {
                   "trigger_type": "scheduler",
                   "name": "Every morning",
-                  "enabled": true,
-                  "config_json": {"cron": "0 8 * * *", "timezone": "America/Chicago", "input": {}}
+                  "enabled": false,
+                  "config_json": {"cron": "0 0 8 * * *", "timezone": "America/Chicago", "input": {}}
                 }
               ]
             }
@@ -220,7 +222,7 @@ public class CreateWorkflowTool implements InternalTool {
             {
               "name": "test",
               "description": "Summarize the top 3 Hacker News stories every minute.",
-              "status": "active",
+              "status": "draft",
               "definition_json": {
                 "version": 1,
                 "inputs": [],
@@ -238,8 +240,8 @@ public class CreateWorkflowTool implements InternalTool {
                 {
                   "trigger_type": "scheduler",
                   "name": "Every minute",
-                  "enabled": true,
-                  "config_json": {"cron": "* * * * *", "timezone": "America/Chicago", "input": {}}
+                  "enabled": false,
+                  "config_json": {"cron": "0 * * * * *", "timezone": "America/Chicago", "input": {}}
                 }
               ]
             }
@@ -248,6 +250,8 @@ public class CreateWorkflowTool implements InternalTool {
             <rules>
             Create scheduler, manual, and webhook triggers in the same create-workflow call when the user includes trigger intent.
             Preserve values from the user's request. For "zip = 75036", include "default": "75036" on the workflow input and manual trigger input field. For scheduled workflows, also include {"zip": "75036"} in scheduler config_json.input.
+            Use status="draft" and scheduler enabled=false unless the user explicitly asks to enable, activate, or start the workflow now.
+            Create only one scheduler trigger for one schedule. Do not create multiple scheduler triggers for the same cron/timezone/input.
             If the user does not specify any trigger, it is acceptable to omit `triggers`; a default manual trigger will be created automatically.
             Do not call manage-workflow or scheduler tools.
             Do not require workflow_id for triggers included during create.
@@ -264,7 +268,7 @@ public class CreateWorkflowTool implements InternalTool {
             .properties(List.of(
                     WorkflowToolDefinitions.input("name", "string", "Workflow name.", true),
                     WorkflowToolDefinitions.input("description", "string", "Workflow description.", false),
-                    WorkflowToolDefinitions.input("status", "string", "draft, active, or disabled. Use draft unless automatic execution is requested.", false),
+                    WorkflowToolDefinitions.input("status", "string", "draft, active, or disabled. Use draft unless the user explicitly asks to enable/activate/start now.", false),
                     WorkflowToolDefinitions.input("definition_json", "object", "Workflow definition JSON object or JSON string.", true),
                     WorkflowToolDefinitions.input("triggers", "array", "Optional trigger definitions to create with the workflow.", false)
             ))

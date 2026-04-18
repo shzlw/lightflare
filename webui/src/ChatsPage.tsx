@@ -36,7 +36,7 @@ import {
 } from '@/lib/api'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
-import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, Brain, ListTodo, Play, CheckCircle2, Zap, AlertCircle, Terminal, FileText, Loader2, Info, Workflow as WorkflowIcon } from 'lucide-react'
+import { Archive, MoreHorizontal, Trash2, Search, Plus, ChevronLeft, ChevronRight, Send, Eye, EyeOff, Brain, ListTodo, Play, CheckCircle2, Zap, AlertCircle, Terminal, FileText, Loader2, Info, RefreshCw, Workflow as WorkflowIcon } from 'lucide-react'
 
 type ChatSession = {
   id: string
@@ -243,6 +243,15 @@ function workflowStepId(step: Record<string, unknown>, index: number) {
   return String(step.id || step.stepId || `step_${index + 1}`)
 }
 
+function isWorkflowCreationText(value: string | null | undefined) {
+  const normalized = value?.toLowerCase() ?? ''
+  return /\b(create|new|build|make|draft)\b/.test(normalized) && /\bworkflow|workflows\b/.test(normalized)
+}
+
+function isWorkflowPlan(steps: Array<{ content: string }>) {
+  return steps.some((step) => isWorkflowCreationText(step.content))
+}
+
 export default function ChatsPage() {
   const [searchParams] = useSearchParams()
   const [sessions, setSessions] = useState<ChatSession[]>([])
@@ -272,6 +281,7 @@ export default function ChatsPage() {
   const [workflowTriggers, setWorkflowTriggers] = useState<WorkflowTrigger[]>([])
   const [isWorkflowPanelLoading, setIsWorkflowPanelLoading] = useState(false)
   const messageListRef = useRef<HTMLDivElement | null>(null)
+  const shouldRefreshWorkflowPanelRef = useRef(false)
 
   useEffect(() => {
     void loadSessions(page, query, sessionPageSize)
@@ -299,22 +309,26 @@ export default function ChatsPage() {
     }
   }, [isWorkflowPanelOpen, selectedWorkflowId])
 
-  async function loadWorkflowPanel() {
+  async function loadWorkflowPanel(options: { selectLatest?: boolean } = {}) {
     setIsWorkflowPanelLoading(true)
+    let nextSelectedWorkflowId: string | null = null
     try {
       const data = await listWorkflows()
       setWorkflows(data)
       setSelectedWorkflowId((current) => {
-        if (current && data.some((workflow) => workflow.id === current)) {
+        if (!options.selectLatest && current && data.some((workflow) => workflow.id === current)) {
+          nextSelectedWorkflowId = current
           return current
         }
-        return data[0]?.id ?? null
+        nextSelectedWorkflowId = data[0]?.id ?? null
+        return nextSelectedWorkflowId
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load workflows.')
     } finally {
       setIsWorkflowPanelLoading(false)
     }
+    return nextSelectedWorkflowId
   }
 
   async function loadWorkflowTriggers(workflowId: string) {
@@ -322,6 +336,13 @@ export default function ChatsPage() {
       setWorkflowTriggers(await listWorkflowTriggers(workflowId))
     } catch {
       setWorkflowTriggers([])
+    }
+  }
+
+  async function refreshWorkflowPanel() {
+    const workflowId = await loadWorkflowPanel()
+    if (workflowId) {
+      await loadWorkflowTriggers(workflowId)
     }
   }
 
@@ -539,6 +560,10 @@ export default function ChatsPage() {
     setStreamEvents([])
     setRetainedStreamEvents([])
     setIsStreamDetailsExpanded(true)
+    shouldRefreshWorkflowPanelRef.current = isWorkflowCreationText(content)
+    if (shouldRefreshWorkflowPanelRef.current) {
+      setIsWorkflowPanelOpen(true)
+    }
     let sessionIdForReload: string | null = selectedSessionId
 
     try {
@@ -590,6 +615,10 @@ export default function ChatsPage() {
             }
             case 'PLAN_CREATED': {
               const payload = data.payload as ChatStreamPlanCreatedEvent
+              if (isWorkflowPlan(payload.steps)) {
+                shouldRefreshWorkflowPanelRef.current = true
+                setIsWorkflowPanelOpen(true)
+              }
               setStreamEvents((current) => [
                 ...current,
                 {
@@ -680,12 +709,14 @@ export default function ChatsPage() {
               requestAnimationFrame(() => {
                 scrollMessageListToBottom(messageListRef.current)
               })
-              if (isWorkflowPanelOpen) {
-                void loadWorkflowPanel()
-                if (selectedWorkflowId) {
-                  void loadWorkflowTriggers(selectedWorkflowId)
-                }
+              if (isWorkflowPanelOpen || shouldRefreshWorkflowPanelRef.current) {
+                void loadWorkflowPanel({ selectLatest: shouldRefreshWorkflowPanelRef.current }).then((workflowId) => {
+                  if (workflowId) {
+                    void loadWorkflowTriggers(workflowId)
+                  }
+                })
               }
+              shouldRefreshWorkflowPanelRef.current = false
               break
             }
             case 'MESSAGE_ERROR': {
@@ -883,7 +914,7 @@ export default function ChatsPage() {
         {/* Main: sessions sidebar + chat thread */}
         <div className={`grid gap-4 min-h-0 overflow-hidden ${
           isWorkflowPanelOpen
-            ? 'grid-cols-[minmax(240px,300px)_minmax(0,1fr)_360px]'
+            ? 'grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(460px,520px)]'
             : 'grid-cols-[minmax(260px,340px)_minmax(0,1fr)]'
         }`}>
 
@@ -1249,9 +1280,22 @@ export default function ChatsPage() {
                     <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Workflow</p>
                     <h3 className="text-lg font-bold tracking-tight">Design Reference</h3>
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsWorkflowPanelOpen(false)}>
-                    Hide
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2"
+                      disabled={isWorkflowPanelLoading}
+                      onClick={() => void refreshWorkflowPanel()}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${isWorkflowPanelLoading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsWorkflowPanelOpen(false)}>
+                      Hide
+                    </Button>
+                  </div>
                 </div>
                 {selectedWorkflow ? (
                   <div className="rounded-lg border border-border/40 bg-muted/30 p-3">

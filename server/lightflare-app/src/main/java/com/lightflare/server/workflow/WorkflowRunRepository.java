@@ -82,4 +82,11 @@ public interface WorkflowRunRepository extends CrudRepository<WorkflowRun, Strin
             """)
     List<WorkflowRun> findRecentByWorkflowId(@Param("workflowId") String workflowId,
                                              @Param("limit") int limit);
+
+    @Modifying
+    @Query("""
+            DELETE FROM workflow_run
+            WHERE workflow_id = :workflowId
+            """)
+    int deleteByWorkflowId(@Param("workflowId") String workflowId);
 }

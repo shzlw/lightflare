@@ -79,6 +79,10 @@ public class WorkflowService {
 
     @Transactional
     public void deleteWorkflow(String id) {
+        getWorkflow(id);
+        stepRunRepository.deleteByWorkflowId(id);
+        runRepository.deleteByWorkflowId(id);
+        triggerRepository.deleteByWorkflowId(id);
         workflowRepository.deleteWorkflowById(id);
     }
 
@@ -91,6 +95,13 @@ public class WorkflowService {
         getWorkflow(workflowId);
         String normalizedTriggerType = normalizeTriggerType(triggerType);
         String normalizedConfigJson = normalizeTriggerConfig(normalizedTriggerType, configJson);
+        if ("scheduler".equals(normalizedTriggerType)) {
+            for (WorkflowTrigger existing : triggerRepository.findByWorkflowIdAndType(workflowId, "scheduler")) {
+                if (sameSchedulerConfig(existing.getConfigJson(), normalizedConfigJson)) {
+                    return existing;
+                }
+            }
+        }
         String id = UUID.randomUUID().toString();
         OffsetDateTime now = OffsetDateTime.now();
         triggerRepository.insertTrigger(
@@ -246,13 +257,55 @@ public class WorkflowService {
             throw new IllegalArgumentException("Workflow trigger config must be a JSON object.");
         }
         Map<String, Object> config = new HashMap<>((Map<String, Object>) map);
-        if ("scheduler".equals(triggerType)
-                && !config.containsKey("nextRunAt")
-                && config.get("cron") instanceof String cron
-                && StringUtils.hasText(cron)) {
-            config.put("nextRunAt", computeNextRunAt(config, OffsetDateTime.now()).toString());
+        if ("scheduler".equals(triggerType)) {
+            String cron = config.get("cron") instanceof String value ? value : null;
+            if (!StringUtils.hasText(cron)) {
+                throw new IllegalArgumentException("Scheduler trigger config_json.cron is required.");
+            }
+            config.put("cron", normalizeCronExpression(cron));
+            if (!config.containsKey("nextRunAt")) {
+                config.put("nextRunAt", computeNextRunAt(config, OffsetDateTime.now()).toString());
+            }
         }
         return JsonUtils.toJson(config);
+    }
+
+    private boolean sameSchedulerConfig(String leftJson, String rightJson) {
+        Map<String, Object> left = schedulerConfigIdentity(leftJson);
+        Map<String, Object> right = schedulerConfigIdentity(rightJson);
+        return left.equals(right);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> schedulerConfigIdentity(String configJson) {
+        Object parsed = JsonUtils.fromJson(StringUtils.hasText(configJson) ? configJson : "{}");
+        if (!(parsed instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> config = new HashMap<>((Map<String, Object>) map);
+        return Map.of(
+                "cron", config.get("cron") != null ? config.get("cron") : "",
+                "timezone", config.get("timezone") != null ? config.get("timezone") : "",
+                "input", config.get("input") != null ? config.get("input") : Map.of()
+        );
+    }
+
+    private String normalizeCronExpression(String cron) {
+        String normalized = cron.trim().replaceAll("\\s+", " ");
+        String[] fields = normalized.split(" ");
+        if (fields.length == 5) {
+            normalized = "0 " + normalized;
+        } else if (fields.length == 6 && "*".equals(fields[0])) {
+            normalized = "0 " + String.join(" ", java.util.Arrays.copyOfRange(fields, 1, fields.length));
+        } else if (fields.length != 6) {
+            throw new IllegalArgumentException("Scheduler cron must use 5-field unix or 6-field Spring format.");
+        }
+        try {
+            CronExpression.parse(normalized);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid scheduler cron: " + cron + ". Use examples like '0 * * * * *' for every minute.");
+        }
+        return normalized;
     }
 
     private OffsetDateTime computeNextRunAt(Map<String, Object> config, OffsetDateTime fromTime) {
