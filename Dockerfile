@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:25-bookworm
+ARG NODE_IMAGE=node:25.2.1-bookworm
 ARG MAVEN_IMAGE=maven:3.9-eclipse-temurin-25
 ARG RUNTIME_IMAGE=eclipse-temurin:25-jre
 
