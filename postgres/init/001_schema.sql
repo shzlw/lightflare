@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 DROP TABLE IF EXISTS document_chunk;
 DROP TABLE IF EXISTS document;
@@ -18,14 +19,14 @@ DROP TABLE IF EXISTS execution_checkpoint;
 CREATE TABLE memory
 (
     id                TEXT PRIMARY KEY,
-    owner_user_id     TEXT,                 -- null only for public memory
-    session_id        TEXT,                 -- set for session-scoped memory
-    scope             VARCHAR(20) NOT NULL, -- session, user, public
-    kind              VARCHAR(30) NOT NULL, -- chat_message, knowledge_note, summary, fact, tool_result, document
-    source            VARCHAR(20) NOT NULL, -- user, agent, system, import
-    retention_policy  VARCHAR(20) NOT NULL, -- compactable, preserve_raw
-    status            VARCHAR(20) NOT NULL, -- active, archived, deleted
-    status_reason     VARCHAR(30),          -- compacted, user_deleted, admin_deleted, expired, manual
+    owner_user_id     TEXT,
+    session_id        TEXT,
+    scope             VARCHAR(20) NOT NULL,
+    kind              VARCHAR(30) NOT NULL,
+    source            VARCHAR(20) NOT NULL,
+    retention_policy  VARCHAR(20) NOT NULL,
+    status            VARCHAR(20) NOT NULL,
+    status_reason     VARCHAR(30),
     status_changed_at TIMESTAMPTZ,
     status_changed_by TEXT,
     content           TEXT        NOT NULL,
@@ -202,3 +203,28 @@ CREATE TABLE execution_checkpoint
     created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+CREATE INDEX idx_memory_search_vector
+    ON memory USING GIN (search_vector);
+
+CREATE INDEX idx_memory_content_trgm
+    ON memory USING GIN (content gin_trgm_ops);
+
+CREATE INDEX idx_document_file_name_trgm
+    ON document USING GIN (file_name gin_trgm_ops);
+
+CREATE INDEX idx_document_chunk_search_vector
+    ON document_chunk USING GIN (search_vector);
+
+CREATE INDEX idx_document_chunk_content_trgm
+    ON document_chunk USING GIN (content gin_trgm_ops);
+
+CREATE UNIQUE INDEX idx_app_user_username_lower
+    ON app_user (LOWER(username));
+
+CREATE UNIQUE INDEX idx_app_user_email_lower
+    ON app_user (LOWER(email))
+    WHERE email IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_app_user_identity_provider_external_lower
+    ON app_user_identity (LOWER(provider), LOWER(external_user_id));

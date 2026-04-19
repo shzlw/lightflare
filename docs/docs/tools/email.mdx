@@ -1,0 +1,41 @@
+---
+sidebar_position: 2
+---
+
+# Email
+
+Email lets Lightflare send outbound messages through a configured mail server.
+
+## Tools
+
+| Tool | Purpose |
+| --- | --- |
+| `send-email` | Send a plain text email message to one recipient. |
+
+### `send-email` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `to` | yes | Recipient address. |
+| `subject` | yes | Subject line. |
+| `text` | yes | Plain text message body. |
+| `from` | no | Sender address, when the mail server allows the sender to be overridden. |
+
+## Required Properties
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_TOOLS_EMAIL_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_TOOLS_EMAIL_HOST` | Mail server host. |
+| `LIGHTFLARE_TOOLS_EMAIL_PORT` | Mail server port. |
+
+## Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_TOOLS_EMAIL_USERNAME` | unset | Username for authenticated mail servers. |
+| `LIGHTFLARE_TOOLS_EMAIL_PASSWORD` | unset | Password for authenticated mail servers. |
+| `LIGHTFLARE_TOOLS_EMAIL_FROM` | unset | Default sender address. |
+| `LIGHTFLARE_TOOLS_EMAIL_PROPERTIES_<KEY>` | `{}` | Additional JavaMail properties, such as transport security settings. |
+
+When Email is enabled, `send-email` is available to the agent. Use mail server credentials and sender restrictions to control what the tool can send.

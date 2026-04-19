@@ -1,0 +1,75 @@
+---
+sidebar_position: 3
+---
+
+# Memory
+
+## Overview
+
+Memory configuration controls where uploaded files are stored, how much session context is kept, when long conversation history is compacted, how many relevant memories are retrieved, and how background memory work is executed.
+
+Most installations can use the defaults. Tune these settings when you need to change storage paths, adjust how much context the agent receives, or scale background embedding work.
+
+## Storage
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_MEMORY_UPLOAD_DIR` | `/tmp/lightflare/memory-uploads` | Directory used to store uploaded memory files. Use a persistent volume in production. |
+
+## Conversation Context
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_MEMORY_SESSION_MEMORY_LIMIT` | `50` | Maximum number of active session memory entries loaded from the current chat. |
+| `LIGHTFLARE_MEMORY_SIMILARITY_RESULT_LIMIT` | `10` | Maximum number of relevant saved memories or document sections retrieved for an agent run. |
+
+Higher values can give the agent more context, but also increase prompt size and token usage. Lower values keep runs smaller and faster, but may omit useful background information.
+
+## Compaction
+
+Long chats can produce many session memory entries. Compaction summarizes older compactable entries so the conversation remains useful without replaying every message.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_MEMORY_COMPACTION_TOKEN_THRESHOLD` | `3000` | Approximate token threshold that can trigger session memory compaction. |
+| `LIGHTFLARE_MEMORY_COMPACTION_BATCH_SIZE` | `5` | Number of compactable memory entries processed in one compaction pass. |
+
+Raise the threshold if you want longer raw conversation history to remain active. Lower it if you want long sessions summarized sooner.
+
+## Context Search
+
+Context search decides which saved memories and document sections are most relevant to a request.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_CONTEXT_SEARCH_MIN_CANDIDATE_LIMIT` | `20` | Minimum number of candidate rows considered per search source before final ranking. |
+| `LIGHTFLARE_CONTEXT_SEARCH_CANDIDATE_LIMIT_MULTIPLIER` | `4` | Multiplier applied to the requested result limit when loading candidates. |
+| `LIGHTFLARE_CONTEXT_SEARCH_MAX_CHUNKS_PER_DOCUMENT` | `2` | Maximum number of sections from one uploaded document returned after ranking. |
+| `LIGHTFLARE_CONTEXT_SEARCH_MEMORY_PAGE_SEARCH_LIMIT` | `500` | Maximum relevance-ranked memory IDs considered when searching from the Memories page. |
+
+The document chunk cap helps prevent one long document from crowding out every other result.
+
+## Ranking Weights
+
+Ranking weights control how different relevance signals are balanced.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_CONTEXT_SEARCH_VECTOR_WEIGHT` | `0.55` | Weight for semantic similarity. |
+| `LIGHTFLARE_CONTEXT_SEARCH_TEXT_WEIGHT` | `0.30` | Weight for exact text search. |
+| `LIGHTFLARE_CONTEXT_SEARCH_RECENCY_WEIGHT` | `0.10` | Weight for newer memories. |
+| `LIGHTFLARE_CONTEXT_SEARCH_SCOPE_WEIGHT` | `0.05` | Weight for closer memory scopes, such as session context. |
+
+Semantic similarity helps with related concepts. Text search helps with exact names, IDs, acronyms, filenames, and other literal terms.
+
+## Background Embedding Work
+
+Memory and document content can be prepared for semantic search in the background.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_MEMORY_EMBEDDING_EXECUTOR_CORE_POOL_SIZE` | `2` | Core thread count for background embedding work. |
+| `LIGHTFLARE_MEMORY_EMBEDDING_EXECUTOR_MAX_POOL_SIZE` | `4` | Maximum thread count for background embedding work. |
+| `LIGHTFLARE_MEMORY_EMBEDDING_EXECUTOR_QUEUE_CAPACITY` | `100` | Queue capacity for pending embedding work. |
+
+Increase these values only when your LLM provider and database can handle more concurrent embedding work.

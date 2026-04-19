@@ -6,26 +6,81 @@ sidebar_position: 2
 
 ## Overview
 
-Chat is the main interactive experience for working with an agent. A user sends a message, the agent decides what work is needed, and progress is streamed back while the work runs.
+Chat is the main interactive workspace for asking Lightflare to do work. A user sends a message, the agent decides what needs to happen, and progress streams back while the run is still active.
 
-Chat is designed for long-running work, not just instant responses. During a run, the UI can show:
+Chat is useful when a request may require more than one step:
 
+- Answering with context from memory.
+- Calling tools.
+- Reading uploaded documents.
+- Searching external systems through MCP tools.
+- Creating or running workflows.
+- Combining several results into one final response.
+
+Chat is not only a text box for instant answers. It is a place to watch an agent work through a task.
+
+## What Users See
+
+During a chat run, the UI can show:
+
+- When the assistant response starts.
 - The plan the agent intends to follow.
 - Which step is currently running.
 - Tool calls and tool results.
-- Intermediate progress messages.
+- Progress updates from each step.
 - The final response.
+- Errors when a run cannot complete.
 
-This helps users understand what the agent is doing instead of waiting on a blank screen. It is especially useful when the agent needs to search memory, call external tools, inspect documents, or run scheduled-style work from a chat request.
+This streaming feedback helps users understand whether the agent is retrieving context, calling a tool, waiting on a result, or composing the final answer.
 
-Chat history can also feed memory. Useful facts from prior conversation can be saved or compacted so future runs have context without replaying the full transcript.
+Example:
 
-The chat executor settings control how many chat runs can stream at once and how much burst traffic can wait in the queue.
+1. You ask, "Check the event forecast and summarize whether we should move the event indoors."
+2. The agent may plan a location/weather lookup and a summary step.
+3. The chat stream shows the step progress.
+4. The final response explains the recommendation.
 
-## Properties
+## Sessions and History
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `LIGHTFLARE_CHAT_STREAM_EXECUTOR_CORE_POOL_SIZE` | `4` | Chat stream executor core pool size. |
-| `LIGHTFLARE_CHAT_STREAM_EXECUTOR_MAX_POOL_SIZE` | `8` | Chat stream executor max pool size. |
-| `LIGHTFLARE_CHAT_STREAM_EXECUTOR_QUEUE_CAPACITY` | `100` | Chat stream executor queue capacity. |
+A chat session groups messages into one ongoing conversation. Sessions and messages are stored in PostgreSQL, not as local markdown files. This allows Lightflare to list sessions, page through message history, enforce access control, and track usage.
+
+Each session belongs to a user. A normal user can access their own sessions. Admin-like users can inspect sessions across users when needed for operations.
+
+Sessions can be:
+
+- Active, for normal use.
+- Archived, when they should no longer appear as active work.
+- Deleted, when they should be removed from normal access.
+
+Message history is loaded in pages, so long conversations do not need to be fetched all at once.
+
+## Relationship to Memory
+
+Chat history can become memory. During a run, Lightflare can save user and assistant messages as session memory so follow-up questions have context.
+
+For example:
+
+1. You say, "For this rollout, use May 15 as the launch date."
+2. Five messages later, you ask, "What should happen one week before launch?"
+3. The agent can use the saved session context to understand which date "launch" refers to.
+
+Long conversations can also be summarized into compact memory so the useful facts remain available without replaying every old message.
+
+## Relationship to Tools and Workflows
+
+Chat is often where users describe work in natural language. The agent can then decide whether to answer directly, call a tool, or create/update/run a workflow.
+
+Examples:
+
+- "Find the latest policy document and answer this question." Chat can retrieve relevant memory or document context.
+- "Post this summary to Slack." Chat can call an approved Slack tool.
+- "Create a workflow that checks this every morning." Chat can create a reusable workflow definition.
+- "Run the report workflow with the selected record." Chat can start an existing workflow with input.
+
+For repeatable tasks, a workflow is usually better than asking chat to improvise the same steps every time.
+
+## Usage Tracking
+
+Chat sessions track total token usage, input tokens, and output tokens when the configured LLM provider reports usage. This helps operators understand the cost and size of chat activity over time.
+
+For runtime settings such as stream executor sizing and queue capacity, see [Chat configuration](../configurations/chat).

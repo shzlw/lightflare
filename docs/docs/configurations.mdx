@@ -1,0 +1,28 @@
+---
+sidebar_position: 4
+---
+
+# Configurations
+
+Configuration pages describe runtime behavior that shapes how Lightflare operates across capabilities and tools.
+
+Use this section for:
+
+- Agent execution settings.
+- Chat streaming concurrency and queue settings.
+- Memory storage, retrieval, and compaction settings.
+- Logging format and operational output.
+
+Spring Boot supports relaxed binding, so any property can be overridden with an uppercase environment variable where dots and dashes become underscores.
+
+Example:
+
+```text
+lightflare.agent.max-step-attempts
+```
+
+becomes:
+
+```text
+LIGHTFLARE_AGENT_MAX_STEP_ATTEMPTS
+```

@@ -20,4 +20,7 @@ cp -R "$WEBUI_DIR/dist/." "$STATIC_DIR/"
 
 echo "Building server jar..."
 cd "$SERVER_DIR"
+BACKEND_BUILD_START_SECONDS="$SECONDS"
 mvn -q -pl lightflare-app -am package
+BACKEND_BUILD_DURATION_SECONDS="$((SECONDS - BACKEND_BUILD_START_SECONDS))"
+printf 'Backend build finished in %02d:%02d\n' "$((BACKEND_BUILD_DURATION_SECONDS / 60))" "$((BACKEND_BUILD_DURATION_SECONDS % 60))"

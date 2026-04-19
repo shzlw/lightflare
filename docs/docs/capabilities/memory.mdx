@@ -6,51 +6,100 @@ sidebar_position: 1
 
 ## Overview
 
-Memory is Lightflare's long-term context layer. It lets agents remember useful information beyond a single prompt and lets users manage that information directly.
+Memory is Lightflare's saved context. It helps the agent use information that is not in the current message, such as previous chat details, notes you added, or documents you uploaded.
 
-Memory supports multiple sources:
+Use memory for information that should be available again later:
 
-- Manual memories added from the Memories page.
-- Memories created from chat history.
-- Uploaded files, where the file metadata and extracted text become searchable context.
-- System or assistant-generated summaries when conversation context needs to be compacted.
+- Team facts, policies, or procedures.
+- Personal preferences and recurring instructions.
+- Project background that comes up across chats.
+- Uploaded reference documents.
+- Important details from a long conversation.
 
-Memory also supports different visibility scopes:
+Memory is not a replacement for the current request. If your current message conflicts with saved memory, the current message should be treated as the source of truth.
 
-- User-scoped memory is private to one user.
-- Session-scoped memory is tied to a specific chat session.
-- Global or shared memory can be used as broader context when available.
+## What Gets Saved
 
-Uploaded documents are handled as memory too, but the document content is split into smaller searchable chunks. This lets a large PDF or text file be retrieved by the specific sections that match the current question instead of forcing the whole file into the prompt.
+Lightflare can use several kinds of memory:
 
-At a high level, retrieval works like this:
+| Kind | What it is useful for |
+| --- | --- |
+| Chat history | Keeping enough context from the current conversation so follow-up questions make sense. |
+| Knowledge notes | Facts or instructions you add directly, such as "Use the standard support handoff checklist." |
+| Documents | Uploaded files that should be searchable later. |
+| Summaries | Compact versions of long chat history, used so older context can still be useful without replaying every message. |
 
-1. The current user message is used as the search query.
-2. Lightflare searches normal memories and document chunks that the user is allowed to access.
-3. Semantic search finds conceptually related content.
-4. Full-text search helps with exact names, IDs, filenames, code terms, and phrases.
-5. Results are scored with configurable weights for semantic match, text match, recency, and scope.
-6. The best results are added to the agent's context with enough metadata to explain where the information came from.
+Uploaded documents are searchable by their content, not just by their filename. For example, after uploading a policy PDF, you can ask a question about a specific rule and Lightflare can retrieve the relevant part of the document.
 
-The Memories page uses the same retrieval behavior when searching. When there is no search query, it behaves like a normal list and can sort by creation time.
+## Visibility
 
-## Properties
+Memory can be saved with different visibility:
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `LIGHTFLARE_MEMORY_UPLOAD_DIR` | `/tmp/lightflare/memory-uploads` | File upload directory for memory attachments. |
-| `LIGHTFLARE_MEMORY_COMPACTION_TOKEN_THRESHOLD` | `3000` | Token threshold for memory compaction. |
-| `LIGHTFLARE_MEMORY_COMPACTION_BATCH_SIZE` | `5` | Memory compaction batch size. |
-| `LIGHTFLARE_MEMORY_SESSION_MEMORY_LIMIT` | `50` | Session memory limit. |
-| `LIGHTFLARE_MEMORY_SIMILARITY_RESULT_LIMIT` | `10` | Similarity search result limit. |
-| `LIGHTFLARE_MEMORY_EMBEDDING_EXECUTOR_CORE_POOL_SIZE` | `2` | Embedding executor core pool size. |
-| `LIGHTFLARE_MEMORY_EMBEDDING_EXECUTOR_MAX_POOL_SIZE` | `4` | Embedding executor max pool size. |
-| `LIGHTFLARE_MEMORY_EMBEDDING_EXECUTOR_QUEUE_CAPACITY` | `100` | Embedding executor queue capacity. |
-| `LIGHTFLARE_CONTEXT_SEARCH_MIN_CANDIDATE_LIMIT` | `20` | Minimum candidate rows loaded per context search source before ranking. |
-| `LIGHTFLARE_CONTEXT_SEARCH_CANDIDATE_LIMIT_MULTIPLIER` | `4` | Multiplier applied to the requested result limit when loading search candidates. |
-| `LIGHTFLARE_CONTEXT_SEARCH_MAX_CHUNKS_PER_DOCUMENT` | `2` | Maximum document chunks from a single document after ranking. |
-| `LIGHTFLARE_CONTEXT_SEARCH_MEMORY_PAGE_SEARCH_LIMIT` | `500` | Maximum relevance-ranked memory IDs considered for Memories page search pagination. |
-| `LIGHTFLARE_CONTEXT_SEARCH_VECTOR_WEIGHT` | `0.55` | Vector rank contribution to context search score. |
-| `LIGHTFLARE_CONTEXT_SEARCH_TEXT_WEIGHT` | `0.30` | Full-text rank contribution to context search score. |
-| `LIGHTFLARE_CONTEXT_SEARCH_RECENCY_WEIGHT` | `0.10` | Recency contribution to context search score. |
-| `LIGHTFLARE_CONTEXT_SEARCH_SCOPE_WEIGHT` | `0.05` | Scope boost contribution to context search score. |
+| Scope | Who can use it |
+| --- | --- |
+| Session | Only the current chat session. Useful for short-lived conversation context. |
+| User | The owning user across their chats. Useful for personal preferences and recurring work. |
+| Public | Shared context available to users. Public memories are intended for team-wide knowledge and are admin-controlled. |
+
+Examples:
+
+- Session memory: "In this chat, we are comparing three vendors." The agent can use that detail for follow-up questions in the same chat.
+- User memory: "When I ask for status updates, format them as short bullet points." The agent can apply that preference in future chats for that user.
+- Public memory: "The company holiday calendar is stored in this uploaded document." The agent can use it as shared reference material.
+
+## How Memory Helps During Chat
+
+When you send a message, Lightflare prepares context for the agent. It can include:
+
+- Recent messages from the same chat.
+- Relevant saved notes.
+- Relevant sections from uploaded documents.
+- Summaries of older chat context.
+
+This lets the agent answer follow-up questions without requiring you to repeat everything.
+
+Example:
+
+1. You upload a benefits handbook.
+2. Later, you ask, "How many days of parental leave do we offer?"
+3. Lightflare searches the handbook content and includes the matching section for the agent.
+4. The agent answers from the retrieved context.
+
+Another example:
+
+1. In a chat, you say, "For this launch plan, treat April 30 as the release date."
+2. Later in the same chat, you ask, "What should we do two weeks before release?"
+3. The agent can use the saved session context to understand which release date you mean.
+
+## Search Behavior
+
+Memory search is designed to work for both meaning and exact wording.
+
+Lightflare stores memory data in PostgreSQL rather than as markdown files on disk. This makes memory easier to query, filter, secure by scope, and combine with uploaded document records.
+
+Search combines two retrieval styles:
+
+- Embedding vector search for semantic similarity.
+- PostgreSQL full-text search for exact words and phrases.
+
+Semantic search helps with conceptually related questions:
+
+- Search: "vacation policy"
+- Possible match: "Paid time off and annual leave rules"
+
+Recent and closely scoped memories are generally more useful than older or broader ones. That helps a current chat detail beat a stale general note when both are relevant.
+
+## Managing Memory
+
+The Memories page lets you:
+
+- Add memory manually.
+- Upload documents.
+- Search saved memory.
+- Filter by owner, session, scope, kind, or status.
+- Archive memory you do not want active anymore.
+- Delete memory you no longer want retained.
+
+Archiving keeps the record but removes it from active use. Deleting marks it as deleted so it no longer appears as active memory.
+
+For runtime settings such as upload storage, search limits, and compaction thresholds, see [Memory configuration](../configurations/memory).

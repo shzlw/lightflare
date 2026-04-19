@@ -1,0 +1,96 @@
+---
+sidebar_position: 4
+---
+
+# Workflow
+
+## Overview
+
+Workflow is for repeatable work. It turns a task into a saved process that can be run again with clear inputs, predictable steps, and a run history.
+
+Use workflows when you want consistency:
+
+- A report that should run the same way each time.
+- A tool-backed process with known inputs.
+- A recurring check.
+- A handoff that should produce the same shape of output.
+- A process that should be easy to inspect after it runs.
+
+Chat is best for exploration and one-off requests. Workflow is better when the process should be reused.
+
+## What A Workflow Contains
+
+A workflow usually includes:
+
+- A name and description.
+- Inputs that users or triggers provide when it runs.
+- Steps that perform the work.
+- Optional triggers that start the workflow.
+- Run history showing what happened.
+
+Lightflare stores workflows, triggers, runs, and step history in PostgreSQL. They are not stored as local markdown files. This makes workflows easier to list, inspect, run, and audit from the application.
+
+## How Workflows Run
+
+At a high level, a workflow run works like this:
+
+1. The workflow starts manually, from chat, or from a trigger.
+2. The run receives input values.
+3. Each step runs in order.
+4. Tool steps call approved tools directly when the tool and inputs are known.
+5. LLM steps are used when the workflow needs reasoning, summarization, classification, drafting, or transformation.
+6. Each step records its result.
+7. The run finishes with a completed or failed status.
+
+Direct tool steps are preferred when possible. They use fewer model tokens and are usually more consistent than asking an LLM to decide which tool to call at runtime.
+
+Use LLM steps for the parts tools cannot do well, such as interpreting results, writing a summary, or deciding how to phrase a final response.
+
+## Triggers
+
+Triggers define how a workflow starts.
+
+Common trigger types include:
+
+| Trigger | Use it when |
+| --- | --- |
+| Manual | A user should choose the workflow and provide inputs before running it. |
+| Recurring | The workflow should run on a schedule, such as every morning or every Friday. |
+| Integration-driven | Another system or integration should start the workflow with input data. |
+
+Example:
+
+- Manual: "Run the report for the selected record."
+- Recurring: "Every weekday morning, collect the latest metrics and summarize changes."
+- Integration-driven: "When an external event provides the required record reference, run the summary workflow."
+
+Scheduled workflows should usually start disabled or in draft until the user explicitly asks to activate them.
+
+## Relationship To Chat
+
+Chat can create, edit, and run workflows from natural language.
+
+For example, a user can say:
+
+> Create a workflow that checks Hacker News every morning, fetches the top stories, and summarizes them.
+
+Lightflare can save that as a reusable workflow. Later, the user can run it directly instead of asking chat to re-plan the same process from scratch.
+
+Chat is also useful for improving a workflow:
+
+- "Add a notification step at the end."
+- "Change the schedule to weekdays only."
+- "Run this workflow with the current input set."
+- "Show me the last run and why it failed."
+
+## Inspecting Runs
+
+Workflow runs keep a record of inputs, step results, status, errors, and completion time. This helps answer questions like:
+
+- Did the workflow run?
+- Which step failed?
+- What input was used?
+- What did the tool return?
+- Was the final output produced?
+
+This run history is one of the main reasons to use workflow for repeatable operations instead of relying only on chat.

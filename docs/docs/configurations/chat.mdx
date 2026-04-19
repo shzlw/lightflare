@@ -1,0 +1,23 @@
+---
+sidebar_position: 2
+---
+
+# Chat
+
+## Overview
+
+Chat configuration controls the executor used for streaming assistant responses. These settings affect how many chat runs can stream concurrently and how much burst traffic can wait in the queue.
+
+Most installations can use the defaults. Increase these values when you expect multiple users to run long chat tasks at the same time and the server has enough CPU, memory, database capacity, and LLM/tool throughput to support it.
+
+## Stream Executor
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_CHAT_STREAM_EXECUTOR_CORE_POOL_SIZE` | `4` | Core number of chat streaming worker threads. |
+| `LIGHTFLARE_CHAT_STREAM_EXECUTOR_MAX_POOL_SIZE` | `8` | Maximum number of chat streaming worker threads. |
+| `LIGHTFLARE_CHAT_STREAM_EXECUTOR_QUEUE_CAPACITY` | `100` | Number of pending chat stream tasks that can wait before the executor rejects more work. |
+
+Higher concurrency can improve throughput for many simultaneous users, but it can also increase load on the LLM provider, tools, database, and memory search.
+
+If users see chat responses waiting for a long time before they start, the stream executor may be saturated. If the server or downstream providers are already overloaded, increasing these values can make the problem worse.

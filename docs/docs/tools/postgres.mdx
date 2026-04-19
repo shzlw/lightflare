@@ -1,0 +1,46 @@
+---
+sidebar_position: 7
+---
+
+# Postgres
+
+Postgres lets Lightflare inspect configured PostgreSQL databases and run read-only queries. It is useful when an agent or workflow needs database-backed facts without giving it write access.
+
+## Tools
+
+| Tool | Purpose |
+| --- | --- |
+| `postgres-list-tables` | List tables in the public schema. |
+| `postgres-list-columns` | Inspect columns for a table. |
+| `postgres-run-query` | Run a read-only SQL query. |
+
+### `postgres-list-tables` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `connectionName` | no | Configured connection name. Optional when only one connection is configured. |
+
+### `postgres-list-columns` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `connectionName` | no | Configured connection name. Optional when only one connection is configured. |
+| `tableName` | yes | Table to inspect. |
+
+### `postgres-run-query` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `connectionName` | no | Configured connection name. Optional when only one connection is configured. |
+| `sql` | yes | Read-only SQL query. Queries must start with `SELECT` or `WITH`. |
+
+## Required Properties
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_TOOLS_POSTGRES_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_TOOLS_POSTGRES_CONNECTIONS_<CONNECTION_NAME>_CONNECTION_URL` | JDBC connection URL for a named connection. |
+| `LIGHTFLARE_TOOLS_POSTGRES_CONNECTIONS_<CONNECTION_NAME>_USERNAME` | Database username for the named connection. |
+| `LIGHTFLARE_TOOLS_POSTGRES_CONNECTIONS_<CONNECTION_NAME>_PASSWORD` | Database password for the named connection. |
+
+When Postgres is enabled, all three Postgres tools are available to the agent. Configure database permissions so the provided credentials only allow the access level you want Lightflare to have.

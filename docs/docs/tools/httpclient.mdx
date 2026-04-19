@@ -1,0 +1,50 @@
+---
+sidebar_position: 6
+---
+
+# HTTP Client
+
+HTTP Client lets Lightflare call approved HTTP and HTTPS endpoints from workflows or agent runs. Use it for structured API calls when a dedicated integration does not exist.
+
+## Tools
+
+| Tool | Purpose |
+| --- | --- |
+| `http-get` | Send an HTTP GET request. |
+| `http-post` | Send an HTTP POST request with optional body. |
+| `http-put` | Send an HTTP PUT request with optional body. |
+| `http-delete` | Send an HTTP DELETE request with optional body. |
+
+### `http-get` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `url` | yes | Full HTTP or HTTPS URL. |
+| `headers` | no | Header object with string values. |
+
+### `http-post`, `http-put`, and `http-delete` Inputs
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `url` | yes | Full HTTP or HTTPS URL. |
+| `body` | no | Request body as a string. JSON bodies are supported. |
+| `headers` | no | Header object with string values. |
+
+## Required Properties
+
+| Variable | Description |
+| --- | --- |
+| `LIGHTFLARE_TOOLS_HTTPCLIENT_ENABLED` | Set to `true`. |
+| `LIGHTFLARE_TOOLS_HTTPCLIENT_ENABLED_TOOLS` | Comma-separated tool allowlist. Use one or more of `http-get`, `http-post`, `http-put`, and `http-delete`. |
+
+## Optional Properties
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LIGHTFLARE_TOOLS_HTTPCLIENT_ENABLED_TOOLS` | `[]` | Exposed HTTP Client tools. Empty exposes no HTTP Client tools. |
+| `LIGHTFLARE_TOOLS_HTTPCLIENT_CONNECT_TIMEOUT` | `5s` | Connection timeout. |
+| `LIGHTFLARE_TOOLS_HTTPCLIENT_READ_TIMEOUT` | `30s` | Read timeout. |
+| `LIGHTFLARE_TOOLS_HTTPCLIENT_ALLOWED_HOSTS` | `[]` | Host allowlist. Empty allows any public host. Wildcard subdomains can be written as `*.domain`. |
+| `LIGHTFLARE_TOOLS_HTTPCLIENT_ALLOW_PRIVATE_NETWORK` | `false` | Allow requests to private, local, link-local, multicast, shared, or cloud metadata addresses. |
+
+HTTP Client rejects URLs without an HTTP or HTTPS scheme, URLs with embedded user information, and private network targets unless private network access is explicitly allowed.

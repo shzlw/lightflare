@@ -23,11 +23,14 @@ const sidebars: SidebarsConfig = {
       items: [
         'capabilities/memory',
         'capabilities/chat',
-        'capabilities/agent',
-        'capabilities/scheduling',
-        'capabilities/mcp',
-        'capabilities/logging',
+        'capabilities/workflow',
       ],
+    },
+    {
+      type: 'category',
+      label: 'Configurations',
+      link: {type: 'doc', id: 'configurations'},
+      items: ['configurations/agent', 'configurations/chat', 'configurations/memory', 'configurations/logging'],
     },
     {
       type: 'category',
@@ -39,7 +42,16 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Tools',
       link: {type: 'doc', id: 'tools'},
-      items: ['tools/slack', 'tools/openmeteo', 'tools/playwright', 'tools/brave-search'],
+      items: [
+        'tools/slack',
+        'tools/email',
+        'tools/openmeteo',
+        'tools/playwright',
+        'tools/brave-search',
+        'tools/httpclient',
+        'tools/postgres',
+        'tools/mcp',
+      ],
     },
   ],
 };
