@@ -41,34 +41,27 @@ export default function ToolCatalogPage() {
       </header>
 
       <section className="space-y-6">
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <h3 className="text-xl font-semibold">Configured Tools</h3>
-            <span className="bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">{tools.length} total</span>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="p-4 rounded-2xl border bg-card/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="flex flex-col gap-1">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="p-3 rounded-md border bg-card/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+            <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Tools</span>
-              <span className="text-2xl font-bold">{tools.length}</span>
+              <span className="text-xl font-bold leading-tight">{tools.length}</span>
             </div>
-            <Wrench className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 text-primary/10 group-hover:text-primary/20 transition-colors" />
+            <Wrench className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 text-primary/10 group-hover:text-primary/20 transition-colors" />
           </div>
-          <div className="p-4 rounded-2xl border bg-emerald-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="flex flex-col gap-1">
+          <div className="p-3 rounded-md border bg-emerald-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+            <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Local Definitions</span>
-              <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{tools.filter(t => t.sourceType === 'LOCAL').length}</span>
+              <span className="text-xl font-bold leading-tight text-emerald-700 dark:text-emerald-300">{tools.filter(t => t.sourceType === 'LOCAL').length}</span>
             </div>
-            <Boxes className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors" />
+            <Boxes className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors" />
           </div>
-          <div className="p-4 rounded-2xl border bg-blue-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="flex flex-col gap-1">
+          <div className="p-3 rounded-md border bg-blue-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+            <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">MCP Integrations</span>
-              <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{tools.filter(t => t.sourceType === 'MCP').length}</span>
+              <span className="text-xl font-bold leading-tight text-blue-700 dark:text-blue-300">{tools.filter(t => t.sourceType === 'MCP').length}</span>
             </div>
-            <Boxes className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 text-blue-500/10 group-hover:text-blue-500/20 transition-colors" />
+            <Boxes className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 text-blue-500/10 group-hover:text-blue-500/20 transition-colors" />
           </div>
         </div>
 
