@@ -4,12 +4,120 @@ sidebar_position: 2
 
 # Installation
 
-## Getting Started
+Lightflare can be started in three ways:
 
-Start the stack:
+- Run the published Docker image: `shzlwio/lightflare:0.1`.
+- Run the repository `compose.yaml`.
+- Build and run from source.
+
+All three paths need the same runtime pieces:
+
+1. A PostgreSQL database.
+2. The `vector` and `pg_trgm` PostgreSQL extensions.
+3. The Lightflare database schema created in that database.
+4. Required environment variables for the database connection, first admin login, and one LLM provider.
+
+## Required Environment Variables
+
+Database connection:
+
+| Variable | Purpose |
+| --- | --- |
+| `SPRING_DATASOURCE_URL` | JDBC URL for the PostgreSQL database. |
+| `SPRING_DATASOURCE_USERNAME` | PostgreSQL username used by the app. |
+| `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password used by the app. |
+
+First-login bootstrap superadmin:
+
+| Variable | Purpose |
+| --- | --- |
+| `LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME` | Username for the first superadmin account. |
+| `LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL` | Email stored on the first superadmin account. |
+| `LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD` | Password for the first superadmin login. Change it after signing in. |
+
+LLM provider selection:
+
+| Variable | Purpose |
+| --- | --- |
+| `LIGHTFLARE_LLM_PROVIDER` | Active LLM provider. Use one of `openai`, `ollama`, or `openrouter`. |
+
+The bootstrap superadmin variables are only used while no users exist. After the first user is created, normal login uses the users stored in the database.
+
+## Example Environment Variables
+
+Use values like these for a local test setup using OpenAI as the model provider:
+
+```dotenv
+SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:5432/lightflare
+SPRING_DATASOURCE_USERNAME=lightflare
+SPRING_DATASOURCE_PASSWORD=lightflare
+
+# First-login bootstrap superadmin. Only used while no users exist.
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME=admin
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL=admin@localhost
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD=changeme
+
+# Choose exactly one LLM provider for local testing.
+LIGHTFLARE_LLM_PROVIDER=openai
+
+# OpenAI local testing.
+LIGHTFLARE_LLM_OPENAI_ENABLED=true
+LIGHTFLARE_LLM_OPENAI_MODEL=gpt-5.4-nano
+LIGHTFLARE_LLM_OPENAI_API_KEY=<openai-api-key>
+```
+
+When the app runs inside Docker and connects to a database on the host machine, use `host.docker.internal` instead of `127.0.0.1` in `SPRING_DATASOURCE_URL`.
+
+## Database Schema
+
+The schema file is:
+
+```text
+postgres/init/001_schema.sql
+```
+
+It creates the required extensions and tables:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+
+For a new local database, run the schema file before starting the app:
 
 ```bash
-docker compose up --build
+psql -h 127.0.0.1 -U lightflare -d lightflare -f postgres/init/001_schema.sql
+```
+
+The schema file is intended for initializing a new database. It drops and recreates Lightflare tables.
+
+## Option 1: Run The Docker Image
+
+Use this when you already have PostgreSQL running and initialized.
+
+Prerequisites:
+
+- PostgreSQL is reachable from the container.
+- The `vector` and `pg_trgm` extensions are available.
+- `postgres/init/001_schema.sql` has been applied to the database.
+- Required environment variables are set.
+
+Example:
+
+```bash
+docker run --rm \
+  -p 8066:8066 \
+  -e SPRING_DATASOURCE_URL='jdbc:postgresql://host.docker.internal:5432/lightflare' \
+  -e SPRING_DATASOURCE_USERNAME='lightflare' \
+  -e SPRING_DATASOURCE_PASSWORD='lightflare' \
+  -e LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME='admin' \
+  -e LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL='admin@localhost' \
+  -e LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD='changeme' \
+  -e LIGHTFLARE_LLM_PROVIDER='openai' \
+  -e LIGHTFLARE_LLM_OPENAI_ENABLED='true' \
+  -e LIGHTFLARE_LLM_OPENAI_MODEL='gpt-5.4-nano' \
+  -e LIGHTFLARE_LLM_OPENAI_API_KEY='<openai-api-key>' \
+  shzlwio/lightflare:0.1
 ```
 
 Open the app:
@@ -18,58 +126,71 @@ Open the app:
 http://localhost:8066
 ```
 
-Log in with the bootstrap superadmin account:
+## Option 2: Run With Docker Compose
 
-```text
-username: <your bootstrap superadmin username>
-password: <your bootstrap superadmin password>
+Use this when you want the repository to start both Lightflare and PostgreSQL.
+
+Prerequisites:
+
+- Run Compose from the repository root.
+- The repository contains `postgres/init/001_schema.sql`.
+- Docker can access the repository folder for the Postgres initialization bind mount.
+- Required environment variables are set in your shell or a local `.env` file.
+
+The app service uses the published image:
+
+```yaml
+image: shzlwio/lightflare:0.1
 ```
 
-Change the superadmin password after first login.
+The Postgres service uses `pgvector/pgvector:pg17`, so the `vector` extension is available. The `pg_trgm` extension is provided by PostgreSQL. On first database initialization, Postgres runs the files under `./postgres/init`.
 
-Set the bootstrap superadmin credentials before first login:
+Create a local `.env` file next to `compose.yaml`:
+
+```dotenv
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME=admin
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL=admin@localhost
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD=changeme
+
+LIGHTFLARE_LLM_PROVIDER=openai
+LIGHTFLARE_LLM_OPENAI_ENABLED=true
+LIGHTFLARE_LLM_OPENAI_MODEL=gpt-5.4-nano
+LIGHTFLARE_LLM_OPENAI_API_KEY=<openai-api-key>
+```
+
+Start the stack:
 
 ```bash
-LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME=<superadmin-username> \
-LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL=<superadmin-email> \
-LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD='<superadmin-password>' \
-docker compose up --build
+docker compose up -d
 ```
 
-## Run With Docker Compose
-
-```bash
-docker compose up --build
-```
-
-The app is available at:
+Open the app:
 
 ```text
 http://localhost:8066
 ```
 
-Compose starts:
-
-- `app`: the Lightflare Spring Boot server with the web UI packaged into the jar.
-- `postgres`: PostgreSQL 17 with pgvector, initialized from `postgres/init`.
-
-To reset the local database volume:
+To reset the local database volume and rerun initialization:
 
 ```bash
 docker compose down -v
-docker compose up --build
+docker compose up -d
 ```
 
-## Build From Source
+On Docker Desktop for macOS, allow Docker to access the folder where the repository is checked out if you see a mount permission error.
 
-Use the source build when you want to run Lightflare outside Docker or validate a local change before building an image.
+## Option 3: Build From Source
+
+Use this when you want to validate local code changes or run the app outside Docker.
 
 Prerequisites:
 
-- Java 25
-- Maven 3.9 or newer
-- Node.js 25 or newer
-- PostgreSQL 17 with pgvector enabled
+- Java 25.
+- Maven 3.9 or newer.
+- Node.js 25 or newer.
+- PostgreSQL 17 with `vector` and `pg_trgm` available.
+- `postgres/init/001_schema.sql` has been applied to the database.
+- Required environment variables are set.
 
 Build the web UI and server jar:
 
@@ -83,53 +204,26 @@ The build script:
 2. Builds the web UI.
 3. Places the web UI static assets into the Spring Boot app resources.
 4. Builds the server jar with Maven.
+5. Prints the backend build time.
 
 The output jar is:
 
 ```text
-server/lightflare-app/target/lightflare-app-1.0.jar
+server/lightflare-app/target/lightflare-app-<version>.jar
 ```
 
-Start the local build with the provided local environment script:
+Start the local jar with environment variables set:
 
 ```bash
-./start-local.sh
+SPRING_DATASOURCE_URL='jdbc:postgresql://127.0.0.1:5432/lightflare' \
+SPRING_DATASOURCE_USERNAME='lightflare' \
+SPRING_DATASOURCE_PASSWORD='lightflare' \
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_USERNAME='admin' \
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_EMAIL='admin@localhost' \
+LIGHTFLARE_BOOTSTRAP_SUPERADMIN_PASSWORD='changeme' \
+LIGHTFLARE_LLM_PROVIDER='openai' \
+LIGHTFLARE_LLM_OPENAI_ENABLED='true' \
+LIGHTFLARE_LLM_OPENAI_MODEL='gpt-5.4-nano' \
+LIGHTFLARE_LLM_OPENAI_API_KEY='<openai-api-key>' \
+java -jar server/lightflare-app/target/lightflare-app-0.1.jar
 ```
-
-Or build and start in one command:
-
-```bash
-./build-local.sh run
-```
-
-For a manual build, run the same steps directly:
-
-```bash
-cd webui
-npm ci
-npm run build
-cd ..
-rm -rf server/lightflare-app/src/main/resources/static
-mkdir -p server/lightflare-app/src/main/resources/static
-cp -R webui/dist/. server/lightflare-app/src/main/resources/static/
-cd server
-mvn -q -pl lightflare-app -am package
-```
-
-## Required Database Variables
-
-Configure the application with a PostgreSQL database:
-
-| Variable | Description |
-| --- | --- |
-| `SPRING_DATASOURCE_URL` | JDBC URL for PostgreSQL. |
-| `SPRING_DATASOURCE_USERNAME` | PostgreSQL username used by the app. |
-| `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password used by the app. |
-
-If you run PostgreSQL through Docker Compose, configure the database container with matching values:
-
-| Variable | Description |
-| --- | --- |
-| `POSTGRES_DB` | Database created by the Postgres container. |
-| `POSTGRES_USER` | Database user created by the Postgres container. |
-| `POSTGRES_PASSWORD` | Database password created by the Postgres container. |

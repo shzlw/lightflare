@@ -131,3 +131,4 @@ logs/
 # Test output
 test-results/
 surefire-reports/
+dev.*

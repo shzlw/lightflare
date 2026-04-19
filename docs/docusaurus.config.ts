@@ -76,12 +76,6 @@ const config: Config = {
         },
       ],
     },
-    algolia: {
-      appId: process.env.DOCS_ALGOLIA_APP_ID ?? 'lightflare',
-      apiKey: process.env.DOCS_ALGOLIA_SEARCH_API_KEY ?? 'lightflare',
-      indexName: process.env.DOCS_ALGOLIA_INDEX_NAME ?? 'lightflare',
-      contextualSearch: true,
-    },
     footer: {
       style: 'light',
       copyright: `Copyright © ${new Date().getFullYear()} Lightflare.`,

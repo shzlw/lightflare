@@ -21,7 +21,7 @@ RUN mvn -q -f server/pom.xml -pl lightflare-app -am package -DskipTests
 FROM ${RUNTIME_IMAGE}
 WORKDIR /app
 
-COPY --from=server-build /workspace/server/lightflare-app/target/lightflare-app-1.0.jar app.jar
+COPY --from=server-build /workspace/server/lightflare-app/target/lightflare-app-*.jar app.jar
 
 EXPOSE 8066
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

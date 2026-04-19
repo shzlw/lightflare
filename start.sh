@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JAR_PATH="$ROOT_DIR/server/lightflare-app/target/lightflare-app-1.0.jar"
+JAR_PATH="$ROOT_DIR/server/lightflare-app/target/lightflare-app-0.1.jar"
 REQUIRED_JAVA_VERSION=25
 
 if [[ -n "${JAVA_HOME:-}" && -x "$JAVA_HOME/bin/java" ]]; then
