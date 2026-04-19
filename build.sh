@@ -5,6 +5,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WEBUI_DIR="$ROOT_DIR/webui"
 SERVER_DIR="$ROOT_DIR/server"
 STATIC_DIR="$ROOT_DIR/server/lightflare-app/src/main/resources/static"
+RELEASE_VERSION="${1:-${LIGHTFLARE_VERSION:-}}"
+
+if [[ -n "$RELEASE_VERSION" ]]; then
+  echo "Syncing release version..."
+  node "$ROOT_DIR/scripts/sync-version.mjs" "$RELEASE_VERSION"
+fi
 
 cd "$WEBUI_DIR"
 echo "Installing webui dependencies..."

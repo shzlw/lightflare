@@ -1,5 +1,7 @@
 # Lightflare
 
+[![Docker Pulls](https://img.shields.io/docker/pulls/shzlwio/lightflare?logo=docker&label=docker%20pulls)](https://hub.docker.com/r/shzlwio/lightflare)
+
 Lightflare is a self-hosted agent platform for team AI work.
 
 ## Why Lightflare
