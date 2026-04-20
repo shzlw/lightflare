@@ -1,6 +1,6 @@
 services:
   app:
-    image: shzlwio/lightflare:0.1
+    image: shzlwio/lightflare:0.2
     depends_on:
       postgres:
         condition: service_healthy
