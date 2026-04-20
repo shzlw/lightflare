@@ -1,6 +1,6 @@
 # Lightflare
 
-[![Version](https://img.shields.io/github/package-json/v/shzlw/lightflare?filename=webui%2Fpackage.json&label=version)](VERSION)
+[![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fshzlw%2Flightflare%2Fmain%2Fwebui%2Fpackage.json&query=%24.version&label=version)](https://github.com/shzlw/lightflare/blob/main/VERSION)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/shzlwio/lightflare?logo=docker&label=docker%20pulls)](https://hub.docker.com/r/shzlwio/lightflare)
 
