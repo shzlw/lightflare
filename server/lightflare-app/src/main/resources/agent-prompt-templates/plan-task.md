@@ -101,6 +101,7 @@ Use only facts that are present in the inputs. If memory conflicts with the curr
 - If `steps` is present and non-empty, `response` must be exactly `null`.
 - If `response` is non-null, omit `steps` entirely.
 - Do not produce empty placeholder steps.
+- New plan steps must use `status: "PENDING"`; do not emit `RUNNING`, `WAITING_FOR_USER`, `COMPLETED`, or `FAILED`.
 - Do not hallucinate tools or skills.
 - Do not hallucinate tool categories. Use only categories that appear in `$tools`.
 - Avoid unnecessary steps, abstractions, or follow-up work that the user did not ask for.

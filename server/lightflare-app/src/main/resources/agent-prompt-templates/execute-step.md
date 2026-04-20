@@ -112,7 +112,7 @@ Use exact values from the inputs when populating tool arguments. Do not infer mi
 - Treat `$currentStep.toolCategory` as a hint for the kind of tool expected for this step.
 - Prefer `$stepState` over inferring protocol state from raw text.
 - Use `$dependencyContext` when earlier completed steps produced inputs needed by the current step.
-- Before returning `REQUEST_TOOL_INPUT`, exhaustively check whether the needed value is already present in `$task`, `$currentStep`, `$dependencyContext`, `$memoryList`, `$stepState.latestToolResult` or the selected skill instructions.
+- Before returning `REQUEST_TOOL_INPUT`, exhaustively check whether the needed value is already present in `$task`, `$currentStep`, `$dependencyContext`, `$stepExecutionLog`, `$memoryList`, `$stepState.latestToolResult` or the selected skill instructions.
 - If a required tool argument is explicitly stated anywhere in the current task context, copy it into `toolCall.arguments` and use the tool instead of requesting input.
 - For URLs specifically, extract the exact URL from the current step title or task whenever it is present there.
 - If `$stepState.successfulToolResultAvailable` is true and that result already answers the current step, return `DIRECT_RESPONSE` with `stepComplete=true`. Do not return `USE_TOOL`.

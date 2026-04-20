@@ -6,23 +6,9 @@ sidebar_position: 1
 
 ## Overview
 
-The agent turns a user request into useful work. It can answer directly, use memory, call tools, follow skills, and adapt when tool results change what should happen next.
+Agent configuration controls execution limits, retry behavior, parallelism, replanning, response review, and the executor pool used by agent runs.
 
-At a high level, an agent run works like this:
-
-1. The agent reads the user request, relevant memory, available tools, and available skills.
-2. It creates a short plan only for the work needed to answer the request.
-3. Independent steps can run in parallel when they do not depend on each other.
-4. Each step can call a tool, use previous step results, or produce a partial answer.
-5. After a group of steps finishes, the agent checks whether the current plan is still right.
-6. If results make the remaining plan unnecessary or wrong, the agent can replace the pending work.
-7. The final answer is composed from the original request, retrieved context, tool results, and completed work.
-
-This makes the agent useful for tasks that require more than one action. For example, it can retrieve memories, search a document, call a web or Slack tool, compare results, and then answer with the relevant evidence.
-
-Parallel execution is used to save time when steps are independent. Adaptive replanning is used so the agent does not blindly follow an outdated plan after a tool succeeds, fails, or returns surprising information.
-
-The agent settings control retry behavior, parallelism, maximum execution length, replanning limits, and final response refinement.
+For how the agent plans, executes steps, loads tools, handles missing user input, and composes final responses, see [Agent capability](../capabilities/agent).
 
 ## Properties
 

@@ -63,6 +63,30 @@ public class AgentService {
                 skillSelectionService.buildSkillContext(null),
                 listener
         );
+        if (agentRunnerService.hasWaitingForUserCheckpoint(taskRequest)) {
+            log.info("[{}][RESUME_WAITING] sessionId={} has a waiting execution checkpoint", LOG_STAGE, runContext.executionId());
+            ConversationContext conversationContext = conversationContextService.prepare(runContext);
+            SkillContext skillContext = skillSelectionService.buildSkillContext(conversationContext.currentMemory());
+            String response = agentRunnerService.resume(new AgentTaskRequest(
+                    runContext.executionId(),
+                    runContext.executionType(),
+                    runContext.referenceType(),
+                    runContext.referenceId(),
+                    runContext.userId(),
+                    runContext.task(),
+                    runContext.tools(),
+                    runContext.toolExecutionRouter(),
+                    conversationContext,
+                    skillContext,
+                    listener
+            ));
+            conversationContextService.persistAssistantResponse(runContext, response);
+            log.info("[{}][COMPLETE] sessionId={}, responseLength={}",
+                    LOG_STAGE,
+                    runContext.executionId(), response != null ? response.length() : 0);
+            return response;
+        }
+
         if (agentRunnerService.hasResumableCheckpoint(taskRequest)) {
             log.info("[{}][RESUME] sessionId={} has a running execution checkpoint", LOG_STAGE, runContext.executionId());
             String response = agentRunnerService.resume(taskRequest);

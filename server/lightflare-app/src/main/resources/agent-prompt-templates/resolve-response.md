@@ -22,6 +22,7 @@ Treat execution log entries as evidence. Do not invent facts, tool results, sour
   "Find the current weather in Chicago and tell me whether I should bring an umbrella today."
   ```
 - $plan: the execution plan with final statuses
+  Status values may include `PENDING`, `RUNNING`, `WAITING_FOR_USER`, `COMPLETED`, and `FAILED`.
   Example JSON:
   ```json
   [
@@ -44,6 +45,7 @@ Treat execution log entries as evidence. Do not invent facts, tool results, sour
   ]
   ```
 - $executionLog: tool results, step outcomes, and intermediate execution notes
+  Entries may include `USER_INPUT_RECEIVED` when the user has answered a prior follow-up question.
   Example JSON:
   ```json
   [
@@ -70,7 +72,9 @@ Treat execution log entries as evidence. Do not invent facts, tool results, sour
 <rules>
 - Produce a single coherent final answer for the user.
 - Prefer completed step outcomes and successful tool results.
+- Treat relevant `USER_INPUT_RECEIVED` entries as user-provided evidence.
 - Mention failed steps only if they materially affect the user.
+- If a step is still `WAITING_FOR_USER`, do not present the task as completed; ask for the missing information plainly.
 - Do not expose internal orchestration details unless necessary.
 - Do not repeat partial drafts or duplicate intermediate responses.
 - If $candidateResponse is present, revise it rather than starting over.

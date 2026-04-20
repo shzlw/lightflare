@@ -8,6 +8,7 @@ record StepExecutionResult(
         String stepId,
         LLMPlanResponse.PlanStep.Status status,
         List<String> executionLogEntries,
-        String terminalResponse
+        String userMessage,
+        PendingUserInputRequest pendingUserInputRequest
 ) {
 }

@@ -25,6 +25,7 @@ public class AgentRunCheckpoint {
     private int replanCount;
     private String finalResponse;
     private String error;
+    private PendingUserInputRequest pendingUserInputRequest;
 
     public List<MemoryPromptItem> safePromptMemories() {
         return promptMemories != null ? promptMemories : List.of();

@@ -21,9 +21,10 @@ const sidebars: SidebarsConfig = {
       label: 'Capabilities',
       link: {type: 'doc', id: 'capabilities'},
       items: [
-        'capabilities/memory',
         'capabilities/chat',
+        'capabilities/memory',
         'capabilities/workflow',
+        'capabilities/agent',
       ],
     },
     {

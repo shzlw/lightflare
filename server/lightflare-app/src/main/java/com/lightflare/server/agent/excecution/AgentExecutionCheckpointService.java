@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 public class AgentExecutionCheckpointService {
 
     private static final String STATUS_RUNNING = "running";
+    private static final String STATUS_WAITING_FOR_USER = "waiting_for_user";
     private static final String STATUS_COMPLETED = "completed";
     private static final String STATUS_FAILED = "failed";
 
@@ -32,7 +33,18 @@ public class AgentExecutionCheckpointService {
                 executionType,
                 referenceType,
                 referenceId,
-                List.of(STATUS_RUNNING)
+                List.of(STATUS_RUNNING, STATUS_WAITING_FOR_USER)
+        );
+    }
+
+    public Optional<ExecutionCheckpoint> findWaitingForUserCheckpoint(String executionType,
+                                                                      String referenceType,
+                                                                      String referenceId) {
+        return repository.findLatestByReferenceAndStatuses(
+                executionType,
+                referenceType,
+                referenceId,
+                List.of(STATUS_WAITING_FOR_USER)
         );
     }
 
@@ -78,16 +90,28 @@ public class AgentExecutionCheckpointService {
     }
 
     public void saveRunning(String checkpointId, AgentRunCheckpoint checkpoint) {
+        checkpoint.setPendingUserInputRequest(null);
         save(checkpointId, STATUS_RUNNING, checkpoint);
     }
 
+    public void saveWaitingForUser(String checkpointId,
+                                   AgentRunCheckpoint checkpoint,
+                                   PendingUserInputRequest pendingUserInputRequest) {
+        checkpoint.setPendingUserInputRequest(pendingUserInputRequest);
+        checkpoint.setFinalResponse(null);
+        checkpoint.setError(null);
+        save(checkpointId, STATUS_WAITING_FOR_USER, checkpoint);
+    }
+
     public void saveCompleted(String checkpointId, AgentRunCheckpoint checkpoint, String finalResponse) {
+        checkpoint.setPendingUserInputRequest(null);
         checkpoint.setFinalResponse(finalResponse);
         checkpoint.setError(null);
         save(checkpointId, STATUS_COMPLETED, checkpoint);
     }
 
     public void saveFailed(String checkpointId, AgentRunCheckpoint checkpoint, String error) {
+        checkpoint.setPendingUserInputRequest(null);
         checkpoint.setError(error);
         save(checkpointId, STATUS_FAILED, checkpoint);
     }

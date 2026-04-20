@@ -64,6 +64,8 @@ public class StepExecutionService {
                     step.getContent());
             LLMStepResponse stepResponse;
             try {
+                List<String> promptStepExecutionLog = new ArrayList<>(executionContext.stepExecutionContextFor(step));
+                promptStepExecutionLog.addAll(runEntries);
                 stepResponse = agentPlanner.executeStep(
                         runContext.executionId(),
                         runContext.executionType(),
@@ -72,7 +74,7 @@ public class StepExecutionService {
                         step,
                         stepState,
                         dependencyContext,
-                        List.copyOf(runEntries)
+                        List.copyOf(promptStepExecutionLog)
                 );
             } catch (Exception e) {
                 log.error("[{}][STEP_EXEC_ERROR] sessionId={}, stepId={}, error={}",
@@ -84,6 +86,7 @@ public class StepExecutionService {
                         LLMPlanResponse.PlanStep.Status.FAILED,
                         runEntries,
                         "Execution error: " + e.getMessage(),
+                        null,
                         executionListener,
                         runContext.executionId()
                 );
@@ -139,6 +142,16 @@ public class StepExecutionService {
                 }
                 case REQUEST_TOOL_INPUT -> {
                     String missingInputResponse = toolCallExecutor.buildMissingToolInputResponse(stepResponse);
+                    PendingUserInputRequest pendingInputRequest = new PendingUserInputRequest();
+                    pendingInputRequest.setStepId(step.getId());
+                    pendingInputRequest.setToolName(stepResponse.getToolCall() != null
+                            ? stepResponse.getToolCall().getToolName()
+                            : null);
+                    pendingInputRequest.setMissingInputs(stepResponse.getMissingInputs() != null
+                            ? List.copyOf(stepResponse.getMissingInputs())
+                            : List.of());
+                    pendingInputRequest.setQuestion(missingInputResponse);
+                    pendingInputRequest.setPartialToolCall(stepResponse.getToolCall());
                     executionListener.onStepProgress(
                             runContext.executionId(),
                             cloneStep(step),
@@ -152,9 +165,10 @@ public class StepExecutionService {
                             stepResponse.getMissingInputs());
                     return finalizeStepResult(
                             step,
-                            LLMPlanResponse.PlanStep.Status.FAILED,
+                            LLMPlanResponse.PlanStep.Status.WAITING_FOR_USER,
                             runEntries,
                             missingInputResponse,
+                            pendingInputRequest,
                             executionListener,
                             runContext.executionId()
                     );
@@ -204,6 +218,7 @@ public class StepExecutionService {
                             LLMPlanResponse.PlanStep.Status.COMPLETED,
                             runEntries,
                             instructions,
+                            null,
                             executionListener,
                             runContext.executionId()
                     );
@@ -218,13 +233,14 @@ public class StepExecutionService {
         LLMPlanResponse.PlanStep.Status finalStatus = stepCompleted
                 ? LLMPlanResponse.PlanStep.Status.COMPLETED
                 : LLMPlanResponse.PlanStep.Status.FAILED;
-        return finalizeStepResult(step, finalStatus, runEntries, null, executionListener, runContext.executionId());
+        return finalizeStepResult(step, finalStatus, runEntries, null, null, executionListener, runContext.executionId());
     }
 
     private StepExecutionResult finalizeStepResult(LLMPlanResponse.PlanStep step,
                                                    LLMPlanResponse.PlanStep.Status status,
                                                    List<String> runEntries,
-                                                   String terminalResponse,
+                                                   String userMessage,
+                                                   PendingUserInputRequest pendingUserInputRequest,
                                                    AgentExecutionListener listener,
                                                    String executionId) {
         List<String> finalEntries = new ArrayList<>(runEntries);
@@ -233,16 +249,16 @@ public class StepExecutionService {
                 executionId,
                 cloneStep(step),
                 status.name(),
-                terminalResponse,
+                userMessage,
                 List.copyOf(finalEntries)
         );
-        log.info("[{}][STEP_FINISH] stepId={}, status={}, terminalResponsePresent={}, runEntryCount={}",
+        log.info("[{}][STEP_FINISH] stepId={}, status={}, userMessagePresent={}, runEntryCount={}",
                 LOG_STAGE,
                 step.getId(),
                 status,
-                terminalResponse != null,
+                userMessage != null,
                 finalEntries.size());
-        return new StepExecutionResult(step.getId(), status, List.copyOf(finalEntries), terminalResponse);
+        return new StepExecutionResult(step.getId(), status, List.copyOf(finalEntries), userMessage, pendingUserInputRequest);
     }
 
     private LLMPlanResponse.PlanStep cloneStep(LLMPlanResponse.PlanStep step) {

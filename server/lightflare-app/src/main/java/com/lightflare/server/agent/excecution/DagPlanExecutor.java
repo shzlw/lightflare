@@ -1,9 +1,7 @@
 package com.lightflare.server.agent.excecution;
 
-import com.lightflare.server.agent.*;
-import com.lightflare.server.agent.memory.ConversationContext;
+import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.config.AgentProperties;
-import com.lightflare.server.skill.Skill;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,30 +111,26 @@ public class DagPlanExecutor {
         return parallelSteps;
     }
 
-    public List<StepExecutionResult> executeParallelSteps(AgentRunContext runContext,
-                                                          ConversationContext conversationContext,
-                                                          Skill selectedSkill,
-                                                          List<LLMPlanResponse.PlanStep> parallelSteps,
-                                                          List<String> executionLog,
-                                                          AgentExecutionListener listener) {
+    public List<StepExecutionResult> executeParallelSteps(AgentExecutionState state,
+                                                          List<LLMPlanResponse.PlanStep> parallelSteps) {
         StepExecutionContext executionContext = new StepExecutionContext(
-                runContext.executionId(),
-                runContext.userId(),
-                runContext.task(),
-                conversationContext.promptMemories(),
-                runContext.tools(),
-                selectedSkill != null ? selectedSkill.getName() : null,
-                selectedSkill != null ? selectedSkill.getContent() : null,
-                executionLog
+                state.getRunContext().executionId(),
+                state.getRunContext().userId(),
+                state.getRunContext().task(),
+                state.getConversationContext().promptMemories(),
+                state.getRunContext().tools(),
+                state.getSelectedSkill() != null ? state.getSelectedSkill().getName() : null,
+                state.getSelectedSkill() != null ? state.getSelectedSkill().getContent() : null,
+                state.getExecutionLog()
         );
 
         List<CompletableFuture<StepExecutionResult>> futures = parallelSteps.stream()
                 .map(step -> CompletableFuture.supplyAsync(
                         () -> stepExecutionService.executeStepWithRetries(
-                                runContext,
+                                state.getRunContext(),
                                 executionContext,
                                 clonePlanStep(step),
-                                listener
+                                state.getListener()
                         ),
                         dagPlanTaskExecutor
                 ))
@@ -148,7 +142,7 @@ public class DagPlanExecutor {
                     .toList();
             log.info("[{}][PARALLEL_DONE] sessionId={}, parallelStepCount={}, resultStatuses={}",
                     LOG_STAGE,
-                    runContext.executionId(),
+                    state.getRunContext().executionId(),
                     parallelSteps.size(),
                     results.stream().collect(Collectors.toMap(
                             StepExecutionResult::stepId,
@@ -161,12 +155,11 @@ public class DagPlanExecutor {
         }
     }
 
-    public String applyParallelStepResults(PlanDag planDag,
-                                           List<LLMPlanResponse.PlanStep> parallelSteps,
-                                           List<StepExecutionResult> results,
-                                           List<String> executionLog) {
+    public AppliedStepResults applyParallelStepResults(AgentExecutionState state,
+                                                       List<LLMPlanResponse.PlanStep> parallelSteps,
+                                                       List<StepExecutionResult> results) {
         Map<String, Integer> planOrder = new HashMap<>();
-        List<LLMPlanResponse.PlanStep> steps = planDag.steps();
+        List<LLMPlanResponse.PlanStep> steps = state.getPlanDag().steps();
         for (int i = 0; i < steps.size(); i++) {
             planOrder.put(steps.get(i).getId(), i);
         }
@@ -175,23 +168,27 @@ public class DagPlanExecutor {
                 .sorted(Comparator.comparingInt(result -> planOrder.getOrDefault(result.stepId(), Integer.MAX_VALUE)))
                 .toList();
 
-        String terminalResponse = null;
+        String userMessage = null;
+        PendingUserInputRequest pendingUserInputRequest = null;
         for (StepExecutionResult result : orderedResults) {
-            LLMPlanResponse.PlanStep step = planDag.stepById(result.stepId());
+            LLMPlanResponse.PlanStep step = state.getPlanDag().stepById(result.stepId());
             if (step == null) {
                 continue;
             }
-            planDag.updateStepStatus(result.stepId(), result.status());
-            executionLog.addAll(result.executionLogEntries());
-            if (terminalResponse == null && StringUtils.hasText(result.terminalResponse())) {
-                terminalResponse = result.terminalResponse();
+            state.getPlanDag().updateStepStatus(result.stepId(), result.status());
+            state.getExecutionLog().addAll(result.executionLogEntries());
+            if (userMessage == null && StringUtils.hasText(result.userMessage())) {
+                userMessage = result.userMessage();
+            }
+            if (pendingUserInputRequest == null && result.pendingUserInputRequest() != null) {
+                pendingUserInputRequest = result.pendingUserInputRequest();
             }
         }
 
         for (LLMPlanResponse.PlanStep step : parallelSteps) {
             if (step.getStatus() == LLMPlanResponse.PlanStep.Status.RUNNING) {
-                planDag.updateStepStatus(step.getId(), LLMPlanResponse.PlanStep.Status.FAILED);
-                executionLog.add(planStepFormatter.formatStepEntry(
+                state.getPlanDag().updateStepStatus(step.getId(), LLMPlanResponse.PlanStep.Status.FAILED);
+                state.getExecutionLog().add(planStepFormatter.formatStepEntry(
                         step,
                         "STEP_STATUS",
                         "Status=FAILED reason=missing-parallel-step-result"
@@ -199,13 +196,13 @@ public class DagPlanExecutor {
             }
         }
 
-        log.info("[{}][PARALLEL_MERGE] mergedStepIds={}, terminalResponsePresent={}, executionLogSize={}",
+        log.info("[{}][PARALLEL_MERGE] mergedStepIds={}, userMessagePresent={}, executionLogSize={}",
                 LOG_STAGE,
                 orderedResults.stream().map(StepExecutionResult::stepId).toList(),
-                terminalResponse != null,
-                executionLog.size());
+                userMessage != null,
+                state.getExecutionLog().size());
 
-        return terminalResponse;
+        return new AppliedStepResults(userMessage, pendingUserInputRequest);
     }
     private LLMPlanResponse.PlanStep clonePlanStep(LLMPlanResponse.PlanStep step) {
         LLMPlanResponse.PlanStep copy = new LLMPlanResponse.PlanStep();

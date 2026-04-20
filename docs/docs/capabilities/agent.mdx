@@ -1,0 +1,182 @@
+---
+sidebar_position: 4
+---
+
+# Agent
+
+## Overview
+
+The agent is the runtime that turns a user request into executable work. It can answer directly, use memory, call tools, follow skills, pause for user input, replan when results change the task, and compose a final response from the evidence collected during the run.
+
+The agent is used by chat and by workflow steps that delegate work to the agent. Chat is the main interactive surface, but the agent itself is the orchestration layer behind planning, step execution, tool calls, checkpointing, and final response resolution.
+
+## Run Context
+
+Each agent run starts with an execution context:
+
+- The execution id and reference id, such as the chat session id.
+- The user id.
+- The current task text.
+- Relevant conversation memory.
+- Available skills.
+- Available tools from built-in integrations, internal tools, and MCP servers.
+- A tool execution router that knows how to run each selected tool.
+
+For chat, Lightflare first stores the user message and prepares conversation context. That context can include current session messages, compacted session memory, user or public memory, and relevant document or memory search results.
+
+## Planning
+
+The first model call creates a plan. The planner sees the task, relevant memory, available skills, and lightweight tool metadata.
+
+The planner can return either:
+
+- A direct response, when no execution steps are needed.
+- A plan, when the task needs work.
+
+Plan steps are intentionally small. A step includes an id, content, optional tool category, dependencies, whether it can run in parallel, and a status.
+
+Newly planned steps start as `PENDING`.
+
+## Deferred Tool Loading
+
+The planner does not receive every full tool schema up front. It receives lightweight tool metadata so the planning prompt stays smaller and faster.
+
+Full tool definitions are loaded later during step execution. When a step runs, Lightflare filters the available tools by the step's tool category and gives the step executor the matching tool definitions, including argument schemas and usage guidance.
+
+This keeps planning focused on choosing the right shape of work while preserving accurate tool argument validation at execution time.
+
+## Execution Loop
+
+The execution loop runs the plan in waves:
+
+1. Find pending steps whose dependencies are completed.
+2. Select one or more ready steps to run.
+3. Mark selected steps as `RUNNING`.
+4. Execute selected steps, possibly in parallel.
+5. Merge step results back into the plan and execution log.
+6. Review whether the plan should continue, replan, ask the user, or produce a final response.
+7. Save a checkpoint after state changes.
+
+Parallel execution is used only for steps marked parallelizable and ready at the same time. If any ready step is not parallelizable, it runs alone so side effects and ordering remain predictable.
+
+The execution loop is bounded by configuration:
+
+- Maximum attempts per step.
+- Maximum parallel steps.
+- Maximum execution waves.
+- Maximum replans.
+- Maximum response resolution rounds.
+
+See [Agent configuration](../configurations/agent) for these settings.
+
+## Step Execution
+
+Each step executor receives:
+
+- The original task.
+- The current step.
+- Relevant memory.
+- Selected skill instructions, when available.
+- Completed dependency outputs.
+- Step-specific execution log entries.
+- Matching full tool definitions.
+- Structured step state, including the latest tool result.
+
+The step executor can respond with one of these actions:
+
+| Action | Meaning |
+| --- | --- |
+| `USE_TOOL` | Call a provided tool with structured arguments. |
+| `REQUEST_TOOL_INPUT` | Pause because a required tool argument is missing. |
+| `DIRECT_RESPONSE` | Produce a step result or partial response without a tool call. |
+| `DESIGN_INSTRUCTIONS` | Return local execution instructions from a selected skill. |
+
+Tool calls are normalized before execution. If the model chooses `REQUEST_TOOL_INPUT` but all required tool arguments are present, Lightflare converts the response into a tool call. If required arguments are missing, the step is paused for user input.
+
+## Tool Execution
+
+Tools run server-side through a tool execution router. The router can dispatch to:
+
+- Internal Lightflare tools.
+- Built-in integration tools.
+- MCP-provided tools.
+
+Tool calls are deduplicated inside a step attempt sequence. If the model repeats the same tool call signature, Lightflare blocks the duplicate to avoid repeated side effects.
+
+Tool results are written into the execution log and passed back into the step executor. A successful tool result can complete a step, or the step executor can use it to produce a structured step result.
+
+## Waiting For User Input
+
+When the agent needs more user input, Lightflare persists that as execution state instead of treating it as a completed run.
+
+For missing tool arguments, the step executor returns `REQUEST_TOOL_INPUT`. Lightflare converts that transient action into durable state:
+
+- The step status becomes `WAITING_FOR_USER`.
+- The checkpoint status becomes `waiting_for_user`.
+- The checkpoint payload stores a structured pending input request, including the step id, tool name, missing input names, user-facing question, and any partial tool call.
+
+The chat response asks the user for the missing information. The next user message in the same chat session resumes the waiting checkpoint. Lightflare records the user's answer in the execution log as `USER_INPUT_RECEIVED`, resets waiting steps back to `PENDING`, and continues the existing plan.
+
+This is different from starting a fresh agent run. The stored plan, execution log, tool results, counters, selected skill, and pending input request remain available.
+
+## Plan Review And Replanning
+
+After each execution wave, the agent reviews the current state. The review can choose:
+
+| Outcome | Meaning |
+| --- | --- |
+| `CONTINUE` | More runnable pending steps remain. |
+| `REPLAN` | The pending plan should be replaced because results changed what should happen next. |
+| `FINAL_RESPONSE` | Enough evidence exists to answer the user. |
+| `ASK_USER` | User input is needed before work can continue. |
+| `CANNOT_COMPLETE` | The task cannot be completed with available evidence. |
+
+When replanning, completed and failed steps are treated as immutable. The replanner replaces only the pending part of the plan and can depend on completed step outputs.
+
+Replanning is bounded by the configured maximum replan count. If the limit is reached, remaining pending steps are marked failed and the response resolver produces the best supported answer or limitation.
+
+## Checkpoints
+
+Agent execution is checkpointed in PostgreSQL. A checkpoint stores:
+
+- Execution identity and reference.
+- Status, such as `running`, `waiting_for_user`, `completed`, or `failed`.
+- The original task.
+- Prompt memory.
+- Selected skill details.
+- Current plan and step statuses.
+- Execution log.
+- Wave and replan counters.
+- Pending user input request, when waiting.
+- Final response or error, when finished.
+
+Checkpoints let Lightflare resume a running or waiting execution for the same reference. For chat, that reference is the chat session.
+
+## Error Handling
+
+Step execution has layered error handling:
+
+- A step can retry up to the configured maximum step attempts.
+- Tool failures are captured as tool results and passed back to the step executor.
+- Unexpected step execution exceptions mark that step failed.
+- Duplicate tool calls in the same step are blocked.
+- Dependency-blocked pending steps can be marked failed when execution cannot proceed.
+- Runtime exceptions save the checkpoint as failed before the exception is rethrown.
+
+The final response should be grounded in completed work and execution evidence. Failed or incomplete work is mentioned only when it materially affects the answer.
+
+## Response Resolution
+
+When execution stops, the response resolver composes the final user-facing answer from the task, plan, and execution log.
+
+The response can then be reviewed. The reviewer can accept it, request a refinement, ask for more user information, or mark the task as unable to complete. If the reviewer asks for more information, Lightflare saves the checkpoint as `waiting_for_user` so the next user reply can continue the run.
+
+This response-resolution loop is bounded by the configured maximum response resolution rounds.
+
+## Relationship To Other Capabilities
+
+Chat provides the interactive surface for agent runs and streams plan, step, progress, and final-response events.
+
+Memory gives the agent relevant context from chat history, saved notes, and documents.
+
+Workflow provides repeatable processes. Workflows can be created and managed through chat, and workflow steps can delegate reasoning-heavy work to the agent when direct tool execution is not enough.

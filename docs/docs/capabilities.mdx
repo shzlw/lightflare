@@ -8,9 +8,10 @@ sidebar_position: 3
 
 Lightflare includes several built-in capabilities that work together to run useful agents:
 
-- Memory keeps reusable context across chats, users, sessions, and uploaded documents.
 - Chat provides the interactive conversation experience and streams progress while the agent works.
+- Memory keeps reusable context across chats, users, sessions, and uploaded documents.
 - Workflow runs repeatable multi-step processes from manual starts, trigger records, or chat-created definitions.
+- Agent provides the planning and execution runtime that coordinates memory, skills, tools, checkpoints, replanning, and responses.
 
 Each capability page explains what the feature supports, how it behaves at a high level, and which settings control it.
 
@@ -47,4 +48,4 @@ Optional auth properties:
 | `LIGHTFLARE_AUTH_COOKIE_SECURE` | `false` | Set secure auth cookies. |
 | `LIGHTFLARE_AUTH_COOKIE_SAME_SITE` | `Lax` | Auth cookie SameSite mode. |
 
-Use the capability pages in this section for memory, chat, and workflow behavior. Use Configurations for agent and logging settings, and Tools for built-in integrations and MCP.
+Use the capability pages in this section for chat, memory, workflow, and agent behavior. Use Configurations for runtime properties, and Tools for built-in integrations and MCP.

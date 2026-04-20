@@ -24,6 +24,12 @@ public class ResponseResolver {
     public String resolve(AgentRunContext runContext,
                           List<LLMPlanResponse.PlanStep> steps,
                           List<String> executionLog) {
+        return resolveWithMetadata(runContext, steps, executionLog).response();
+    }
+
+    public ResponseResolutionResult resolveWithMetadata(AgentRunContext runContext,
+                                                List<LLMPlanResponse.PlanStep> steps,
+                                                List<String> executionLog) {
         String candidateResponse = agentPlanner.composeResponse(
                 runContext.executionId(),
                 runContext.executionType(),
@@ -35,7 +41,7 @@ public class ResponseResolver {
                 null
         );
         if (!StringUtils.hasText(candidateResponse)) {
-            return buildStatusFallback(runContext, steps);
+            return new ResponseResolutionResult(buildStatusFallback(runContext, steps), false);
         }
 
         int maxResolutionRounds = Math.max(0, agentProperties.getMaxResponseResolutionRounds());
@@ -54,7 +60,7 @@ public class ResponseResolver {
                         LOG_STAGE,
                         runContext.executionId(),
                         resolutionRound);
-                return candidateResponse;
+                return new ResponseResolutionResult(candidateResponse, false);
             }
 
             log.info("[{}][REVIEW] sessionId={}, resolutionRound={}, outcome={}",
@@ -65,13 +71,19 @@ public class ResponseResolver {
 
             switch (resolution.getOutcome()) {
                 case ACCEPT -> {
-                    return candidateResponse;
+                    return new ResponseResolutionResult(candidateResponse, false);
                 }
-                case ASK_FOR_MORE_INFO, CANNOT_COMPLETE -> {
+                case ASK_FOR_MORE_INFO -> {
                     if (StringUtils.hasText(resolution.getUserMessage())) {
-                        return resolution.getUserMessage();
+                        return new ResponseResolutionResult(resolution.getUserMessage(), true);
                     }
-                    return candidateResponse;
+                    return new ResponseResolutionResult(candidateResponse, false);
+                }
+                case CANNOT_COMPLETE -> {
+                    if (StringUtils.hasText(resolution.getUserMessage())) {
+                        return new ResponseResolutionResult(resolution.getUserMessage(), false);
+                    }
+                    return new ResponseResolutionResult(candidateResponse, false);
                 }
                 case REFINE_RESPONSE -> {
                     if (resolutionRound >= maxResolutionRounds) {
@@ -80,9 +92,9 @@ public class ResponseResolver {
                                 runContext.executionId(),
                                 maxResolutionRounds);
                         if (StringUtils.hasText(resolution.getUserMessage())) {
-                            return resolution.getUserMessage();
+                            return new ResponseResolutionResult(resolution.getUserMessage(), false);
                         }
-                        return candidateResponse;
+                        return new ResponseResolutionResult(candidateResponse, false);
                     }
 
                     String refinedResponse = agentPlanner.composeResponse(
@@ -100,14 +112,14 @@ public class ResponseResolver {
                                 LOG_STAGE,
                                 runContext.executionId(),
                                 resolutionRound + 1);
-                        return candidateResponse;
+                        return new ResponseResolutionResult(candidateResponse, false);
                     }
                     candidateResponse = refinedResponse;
                 }
             }
         }
 
-        return candidateResponse;
+        return new ResponseResolutionResult(candidateResponse, false);
     }
 
     private String buildStatusFallback(AgentRunContext runContext, List<LLMPlanResponse.PlanStep> steps) {

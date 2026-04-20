@@ -30,6 +30,7 @@ public class LLMPlanResponse {
         public enum Status {
             PENDING,
             RUNNING,
+            WAITING_FOR_USER,
             COMPLETED,
             FAILED
         }

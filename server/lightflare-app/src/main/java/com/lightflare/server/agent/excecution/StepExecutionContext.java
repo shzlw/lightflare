@@ -37,6 +37,18 @@ public record StepExecutionContext(
                 .toList();
     }
 
+    public List<String> stepExecutionContextFor(LLMPlanResponse.PlanStep step) {
+        if (step == null || !StringUtils.hasText(step.getId()) || executionLog.isEmpty()) {
+            return List.of();
+        }
+        String stepPrefix = "[" + step.getId() + "]";
+        return executionLog.stream()
+                .filter(StringUtils::hasText)
+                .filter(entry -> entry.startsWith(stepPrefix))
+                .filter(entry -> entry.contains("[USER_INPUT_RECEIVED]"))
+                .toList();
+    }
+
     public List<ToolDefinition> toolsFor(LLMPlanResponse.PlanStep step) {
         if (step == null || !StringUtils.hasText(step.getToolCategory())) {
             return tools;

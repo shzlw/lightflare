@@ -5,12 +5,10 @@ import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.plan.AgentPlanner;
 import com.lightflare.server.agent.skill.SkillContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
-import com.lightflare.server.agent.tool.ToolExecutionRouter;
 import com.lightflare.server.config.AgentProperties;
 import com.lightflare.server.execution.ExecutionCheckpoint;
 import com.lightflare.server.skill.Skill;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
-import com.lightflare.server.tools.core.ToolDefinition;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,29 +47,43 @@ public class AgentExecutionService {
                 && checkpointService.findResumableCheckpoint(executionType, referenceType, referenceId).isPresent();
     }
 
-    public String resume(String executionType,
-                         String referenceType,
-                         String referenceId,
-                         List<ToolDefinition> tools,
-                         ToolExecutionRouter toolExecutionRouter,
-                         AgentExecutionListener listener) {
-        AgentExecutionListener executionListener = listener != null ? listener : AgentExecutionListener.NOOP;
-        ExecutionCheckpoint storedCheckpoint = checkpointService.findResumableCheckpoint(executionType, referenceType, referenceId)
-                .orElseThrow(() -> new IllegalStateException("No resumable execution checkpoint found for referenceId=" + referenceId));
+    public boolean hasWaitingForUserCheckpoint(String executionType, String referenceType, String referenceId) {
+        return StringUtils.hasText(executionType)
+                && StringUtils.hasText(referenceType)
+                && StringUtils.hasText(referenceId)
+                && checkpointService.findWaitingForUserCheckpoint(executionType, referenceType, referenceId).isPresent();
+    }
+
+    public String resume(ResumeExecutionRequest request) {
+        AgentExecutionListener executionListener = request.listener() != null ? request.listener() : AgentExecutionListener.NOOP;
+        ExecutionCheckpoint storedCheckpoint = checkpointService.findResumableCheckpoint(
+                        request.executionType(),
+                        request.referenceType(),
+                        request.referenceId()
+                )
+                .orElseThrow(() -> new IllegalStateException("No resumable execution checkpoint found for referenceId=" + request.referenceId()));
         AgentRunCheckpoint checkpoint = checkpointService.parse(storedCheckpoint);
+        PendingUserInputRequest pendingUserInputRequest = checkpoint.getPendingUserInputRequest();
         resetRunningSteps(checkpoint.safeSteps());
+        if (pendingUserInputRequest != null) {
+            resetWaitingSteps(checkpoint.safeSteps());
+            appendUserInput(checkpoint, pendingUserInputRequest, request.userInput());
+            checkpoint.setPendingUserInputRequest(null);
+        }
 
         AgentRunContext runContext = new AgentRunContext(
                 checkpoint.getExecutionId(),
-                checkpoint.getExecutionType() != null ? checkpoint.getExecutionType() : executionType,
-                checkpoint.getReferenceType() != null ? checkpoint.getReferenceType() : referenceType,
+                checkpoint.getExecutionType(),
+                checkpoint.getReferenceType(),
                 checkpoint.getReferenceId(),
                 checkpoint.getUserId(),
                 checkpoint.getTask(),
-                tools,
-                toolExecutionRouter
+                request.tools(),
+                request.toolExecutionRouter()
         );
-        ConversationContext conversationContext = new ConversationContext(null, checkpoint.safePromptMemories());
+        ConversationContext conversationContext = request.conversationContext() != null
+                ? request.conversationContext()
+                : new ConversationContext(null, checkpoint.safePromptMemories());
         SkillContext skillContext = skillSelectionService.buildSkillContext(null);
         PlanDag planDag = planGraphValidator.buildValidatedDag(checkpoint.safeSteps());
         Skill selectedSkill = skillSelectionService.resolveSelectedSkill(
@@ -86,7 +98,7 @@ public class AgentExecutionService {
 
         log.info("[{}][RESUME] sessionId={}, checkpointId={}, pendingStepCount={}",
                 LOG_STAGE,
-                referenceId,
+                request.referenceId(),
                 storedCheckpoint.id(),
                 planDag.steps().stream()
                         .filter(step -> step != null && step.getStatus() == LLMPlanResponse.PlanStep.Status.PENDING)
@@ -98,19 +110,20 @@ public class AgentExecutionService {
                 cloneSteps(planDag.steps())
         );
 
-        return continueExecution(
-                storedCheckpoint.id(),
-                checkpoint,
-                runContext,
-                conversationContext,
-                skillContext,
-                planDag,
-                selectedSkill,
-                new ArrayList<>(checkpoint.safeExecutionLog()),
-                checkpoint.getWaveNumber(),
-                checkpoint.getReplanCount(),
-                executionListener
-        );
+        AgentExecutionState state = new AgentExecutionState();
+        state.setCheckpointId(storedCheckpoint.id());
+        state.setCheckpoint(checkpoint);
+        state.setRunContext(runContext);
+        state.setConversationContext(conversationContext);
+        state.setSkillContext(skillContext);
+        state.setPlanDag(planDag);
+        state.setSelectedSkill(selectedSkill);
+        state.setExecutionLog(new ArrayList<>(checkpoint.safeExecutionLog()));
+        state.setWaveNumber(checkpoint.getWaveNumber());
+        state.setReplanCount(checkpoint.getReplanCount());
+        state.setListener(executionListener);
+
+        return continueExecution(state);
     }
 
     public String execute(AgentRunContext runContext,
@@ -210,255 +223,245 @@ public class AgentExecutionService {
         checkpoint.setUserId(runContext.userId());
         checkpoint.setPromptMemories(conversationContext.promptMemories());
 
-        return continueExecution(
-                checkpointId,
-                checkpoint,
-                runContext,
-                conversationContext,
-                skillContext,
-                planDag,
-                selectedSkill,
-                executionLog,
-                0,
-                0,
-                executionListener
-        );
+        AgentExecutionState state = new AgentExecutionState();
+        state.setCheckpointId(checkpointId);
+        state.setCheckpoint(checkpoint);
+        state.setRunContext(runContext);
+        state.setConversationContext(conversationContext);
+        state.setSkillContext(skillContext);
+        state.setPlanDag(planDag);
+        state.setSelectedSkill(selectedSkill);
+        state.setExecutionLog(executionLog);
+        state.setListener(executionListener);
+
+        return continueExecution(state);
     }
 
-    private String continueExecution(String checkpointId,
-                                     AgentRunCheckpoint checkpoint,
-                                     AgentRunContext runContext,
-                                     ConversationContext conversationContext,
-                                     SkillContext skillContext,
-                                     PlanDag planDag,
-                                     Skill selectedSkill,
-                                     List<String> executionLog,
-                                     int waveNumber,
-                                     int replanCount,
-                                     AgentExecutionListener executionListener) {
-        updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
+    private String continueExecution(AgentExecutionState state) {
+        updateCheckpoint(state);
         try {
-        while (planDag.hasPendingSteps()) {
-            waveNumber++;
-            if (waveNumber > Math.max(1, agentProperties.getMaxExecutionWaves())) {
-                executionLog.add("[system][execution-limit][CANNOT_COMPLETE] Reached maximum execution waves: "
+        while (state.getPlanDag().hasPendingSteps()) {
+            state.setWaveNumber(state.getWaveNumber() + 1);
+            if (state.getWaveNumber() > Math.max(1, agentProperties.getMaxExecutionWaves())) {
+                state.getExecutionLog().add("[system][execution-limit][CANNOT_COMPLETE] Reached maximum execution waves: "
                         + agentProperties.getMaxExecutionWaves());
                 log.info("[{}][WAVE_LIMIT_REACHED] sessionId={}, maxExecutionWaves={}",
                         LOG_STAGE,
-                        runContext.executionId(),
+                        state.getRunContext().executionId(),
                         agentProperties.getMaxExecutionWaves());
                 break;
             }
 
-            List<LLMPlanResponse.PlanStep> parallelSteps = dagPlanExecutor.selectNextParallelSteps(runContext, planDag);
-            updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
+            List<LLMPlanResponse.PlanStep> parallelSteps = dagPlanExecutor.selectNextParallelSteps(state.getRunContext(), state.getPlanDag());
+            updateCheckpoint(state);
             for (LLMPlanResponse.PlanStep parallelStep : parallelSteps) {
-                executionListener.onStepStarted(runContext.executionId(), cloneStep(parallelStep));
+                state.getListener().onStepStarted(state.getRunContext().executionId(), cloneStep(parallelStep));
             }
             if (parallelSteps.isEmpty()) {
-                PlanContinuationDecision blockedDecision = reviewContinuation(
-                        runContext,
-                        planDag,
-                        executionLog,
-                        List.of()
-                );
+                PlanContinuationDecision blockedDecision = reviewContinuation(state, List.of());
                 if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.REPLAN) {
-                    if (replanCount < Math.max(0, agentProperties.getMaxReplans())) {
-                        ReplanResult replanResult = replanPendingSteps(
-                                runContext,
-                                conversationContext,
-                                skillContext,
-                                planDag,
-                                executionLog,
-                                executionListener,
-                                blockedDecision,
-                                ++replanCount
-                        );
+                    if (state.getReplanCount() < Math.max(0, agentProperties.getMaxReplans())) {
+                        state.setReplanCount(state.getReplanCount() + 1);
+                        ReplanResult replanResult = replanPendingSteps(state, blockedDecision);
                         if (StringUtils.hasText(replanResult.directResponse())) {
-                            executionListener.onFinalResponse(runContext.executionId(), replanResult.directResponse());
-                            checkpointService.saveCompleted(checkpointId, checkpoint, replanResult.directResponse());
+                            state.getListener().onFinalResponse(state.getRunContext().executionId(), replanResult.directResponse());
+                            checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), replanResult.directResponse());
                             return replanResult.directResponse();
                         }
-                        planDag = replanResult.planDag();
-                        selectedSkill = replanResult.selectedSkill() != null ? replanResult.selectedSkill() : selectedSkill;
-                        updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
+                        state.setPlanDag(replanResult.planDag());
+                        state.setSelectedSkill(replanResult.selectedSkill() != null ? replanResult.selectedSkill() : state.getSelectedSkill());
+                        updateCheckpoint(state);
                         continue;
                     } else {
-                        executionLog.add("[system][replan-limit][CANNOT_COMPLETE] Reached maximum replans: "
+                        state.getExecutionLog().add("[system][replan-limit][CANNOT_COMPLETE] Reached maximum replans: "
                                 + agentProperties.getMaxReplans());
                         log.info("[{}][REPLAN_LIMIT_REACHED] sessionId={}, maxReplans={}",
                                 LOG_STAGE,
-                                runContext.executionId(),
+                                state.getRunContext().executionId(),
                                 agentProperties.getMaxReplans());
-                        planDag = markRemainingPendingAsSkipped(
-                                planDag,
-                                executionLog,
-                                executionListener,
-                                runContext.executionId()
-                        );
+                        state.setPlanDag(markRemainingPendingAsSkipped(
+                                state.getPlanDag(),
+                                state.getExecutionLog(),
+                                state.getListener(),
+                                state.getRunContext().executionId()
+                        ));
                         break;
                     }
                 }
-                if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.ASK_USER
-                        || blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.CANNOT_COMPLETE) {
+                if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.ASK_USER) {
                     if (StringUtils.hasText(blockedDecision.getUserMessage())) {
-                        executionListener.onFinalResponse(runContext.executionId(), blockedDecision.getUserMessage());
-                        checkpointService.saveCompleted(checkpointId, checkpoint, blockedDecision.getUserMessage());
+                        state.getListener().onFinalResponse(state.getRunContext().executionId(), blockedDecision.getUserMessage());
+                        checkpointService.saveWaitingForUser(
+                                state.getCheckpointId(),
+                                state.getCheckpoint(),
+                                buildPendingUserInputRequest(null, blockedDecision.getUserMessage())
+                        );
                         return blockedDecision.getUserMessage();
                     }
                 }
+                if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.CANNOT_COMPLETE
+                        && StringUtils.hasText(blockedDecision.getUserMessage())) {
+                    state.getListener().onFinalResponse(state.getRunContext().executionId(), blockedDecision.getUserMessage());
+                    checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), blockedDecision.getUserMessage());
+                    return blockedDecision.getUserMessage();
+                }
                 if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.FINAL_RESPONSE) {
-                    planDag = markRemainingPendingAsSkipped(
-                            planDag,
-                            executionLog,
-                            executionListener,
-                            runContext.executionId()
-                    );
+                    state.setPlanDag(markRemainingPendingAsSkipped(
+                            state.getPlanDag(),
+                            state.getExecutionLog(),
+                            state.getListener(),
+                            state.getRunContext().executionId()
+                    ));
                 }
                 break;
             }
 
-            List<StepExecutionResult> results = dagPlanExecutor.executeParallelSteps(
-                    runContext,
-                    conversationContext,
-                    selectedSkill,
-                    parallelSteps,
-                    executionLog,
-                    executionListener
-            );
+            List<StepExecutionResult> results = dagPlanExecutor.executeParallelSteps(state, parallelSteps);
 
-            String terminalResponse = dagPlanExecutor.applyParallelStepResults(
-                    planDag,
-                    parallelSteps,
-                    results,
-                    executionLog
-            );
-            updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
-            if (StringUtils.hasText(terminalResponse)) {
+            AppliedStepResults applicationResult = dagPlanExecutor.applyParallelStepResults(state, parallelSteps, results);
+            String userMessage = applicationResult.userMessage();
+            updateCheckpoint(state);
+            if (applicationResult.pendingUserInputRequest() != null) {
+                String waitingResponse = StringUtils.hasText(userMessage)
+                        ? userMessage
+                        : applicationResult.pendingUserInputRequest().getQuestion();
+                state.getListener().onFinalResponse(state.getRunContext().executionId(), waitingResponse);
+                checkpointService.saveWaitingForUser(state.getCheckpointId(), state.getCheckpoint(), applicationResult.pendingUserInputRequest());
+                return waitingResponse;
+            }
+            if (StringUtils.hasText(userMessage)) {
                 log.info("[{}][EARLY_RETURN] sessionId={}, responseLength={}",
                         LOG_STAGE,
-                        runContext.executionId(), terminalResponse.length());
-                executionListener.onFinalResponse(runContext.executionId(), terminalResponse);
-                checkpointService.saveCompleted(checkpointId, checkpoint, terminalResponse);
-                return terminalResponse;
+                        state.getRunContext().executionId(), userMessage.length());
+                state.getListener().onFinalResponse(state.getRunContext().executionId(), userMessage);
+                checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), userMessage);
+                return userMessage;
             }
 
             List<String> lastWaveExecutionLog = results.stream()
                     .flatMap(result -> result.executionLogEntries().stream())
                     .toList();
-            PlanContinuationDecision decision = reviewContinuation(
-                    runContext,
-                    planDag,
-                    executionLog,
-                    lastWaveExecutionLog
-            );
+            PlanContinuationDecision decision = reviewContinuation(state, lastWaveExecutionLog);
             log.info("[{}][WAVE_REVIEW] sessionId={}, waveNumber={}, outcome={}, rationale={}",
                     LOG_STAGE,
-                    runContext.executionId(),
-                    waveNumber,
+                    state.getRunContext().executionId(),
+                    state.getWaveNumber(),
                     decision.getOutcome(),
                     decision.getRationale());
             switch (decision.getOutcome()) {
                 case CONTINUE -> {
                 }
                 case REPLAN -> {
-                    if (replanCount >= Math.max(0, agentProperties.getMaxReplans())) {
-                        executionLog.add("[system][replan-limit][CANNOT_COMPLETE] Reached maximum replans: "
+                    if (state.getReplanCount() >= Math.max(0, agentProperties.getMaxReplans())) {
+                        state.getExecutionLog().add("[system][replan-limit][CANNOT_COMPLETE] Reached maximum replans: "
                                 + agentProperties.getMaxReplans());
                         log.info("[{}][REPLAN_LIMIT_REACHED] sessionId={}, maxReplans={}",
                                 LOG_STAGE,
-                                runContext.executionId(),
+                                state.getRunContext().executionId(),
                                 agentProperties.getMaxReplans());
-                        planDag = markRemainingPendingAsSkipped(
-                                planDag,
-                                executionLog,
-                                executionListener,
-                                runContext.executionId()
-                        );
+                        state.setPlanDag(markRemainingPendingAsSkipped(
+                                state.getPlanDag(),
+                                state.getExecutionLog(),
+                                state.getListener(),
+                                state.getRunContext().executionId()
+                        ));
                         break;
                     }
-                    ReplanResult replanResult = replanPendingSteps(
-                            runContext,
-                            conversationContext,
-                            skillContext,
-                            planDag,
-                            executionLog,
-                            executionListener,
-                            decision,
-                            ++replanCount
-                    );
+                    state.setReplanCount(state.getReplanCount() + 1);
+                    ReplanResult replanResult = replanPendingSteps(state, decision);
                     if (StringUtils.hasText(replanResult.directResponse())) {
-                        executionListener.onFinalResponse(runContext.executionId(), replanResult.directResponse());
-                        checkpointService.saveCompleted(checkpointId, checkpoint, replanResult.directResponse());
+                        state.getListener().onFinalResponse(state.getRunContext().executionId(), replanResult.directResponse());
+                        checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), replanResult.directResponse());
                         return replanResult.directResponse();
                     }
-                    planDag = replanResult.planDag();
-                    selectedSkill = replanResult.selectedSkill() != null ? replanResult.selectedSkill() : selectedSkill;
-                    updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
+                    state.setPlanDag(replanResult.planDag());
+                    state.setSelectedSkill(replanResult.selectedSkill() != null ? replanResult.selectedSkill() : state.getSelectedSkill());
+                    updateCheckpoint(state);
                 }
                 case FINAL_RESPONSE -> {
-                    planDag = markRemainingPendingAsSkipped(
-                            planDag,
-                            executionLog,
-                            executionListener,
-                            runContext.executionId()
-                    );
+                    state.setPlanDag(markRemainingPendingAsSkipped(
+                            state.getPlanDag(),
+                            state.getExecutionLog(),
+                            state.getListener(),
+                            state.getRunContext().executionId()
+                    ));
                 }
-                case ASK_USER, CANNOT_COMPLETE -> {
+                case ASK_USER -> {
                     if (StringUtils.hasText(decision.getUserMessage())) {
-                        executionListener.onFinalResponse(runContext.executionId(), decision.getUserMessage());
-                        checkpointService.saveCompleted(checkpointId, checkpoint, decision.getUserMessage());
+                        state.getListener().onFinalResponse(state.getRunContext().executionId(), decision.getUserMessage());
+                        checkpointService.saveWaitingForUser(
+                                state.getCheckpointId(),
+                                state.getCheckpoint(),
+                                buildPendingUserInputRequest(null, decision.getUserMessage())
+                        );
                         return decision.getUserMessage();
                     }
-                    planDag = markRemainingPendingAsSkipped(
-                            planDag,
-                            executionLog,
-                            executionListener,
-                            runContext.executionId()
-                    );
+                    state.setPlanDag(markRemainingPendingAsSkipped(
+                            state.getPlanDag(),
+                            state.getExecutionLog(),
+                            state.getListener(),
+                            state.getRunContext().executionId()
+                    ));
+                }
+                case CANNOT_COMPLETE -> {
+                    if (StringUtils.hasText(decision.getUserMessage())) {
+                        state.getListener().onFinalResponse(state.getRunContext().executionId(), decision.getUserMessage());
+                        checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), decision.getUserMessage());
+                        return decision.getUserMessage();
+                    }
+                    state.setPlanDag(markRemainingPendingAsSkipped(
+                            state.getPlanDag(),
+                            state.getExecutionLog(),
+                            state.getListener(),
+                            state.getRunContext().executionId()
+                    ));
                 }
             }
         }
 
-        dagPlanExecutor.markBlockedStepsAsFailed(planDag, executionLog, executionListener, runContext.executionId());
-        updateCheckpoint(checkpointId, checkpoint, runContext, conversationContext, selectedSkill, planDag, executionLog, waveNumber, replanCount);
+        dagPlanExecutor.markBlockedStepsAsFailed(state.getPlanDag(), state.getExecutionLog(), state.getListener(), state.getRunContext().executionId());
+        updateCheckpoint(state);
 
-        String finalResponse = responseResolver.resolve(runContext, planDag.steps(), executionLog);
-        executionListener.onFinalResponse(runContext.executionId(), finalResponse);
-        checkpointService.saveCompleted(checkpointId, checkpoint, finalResponse);
+        ResponseResolutionResult resolvedResponse = responseResolver.resolveWithMetadata(state.getRunContext(), state.getPlanDag().steps(), state.getExecutionLog());
+        String finalResponse = resolvedResponse.response();
+        state.getListener().onFinalResponse(state.getRunContext().executionId(), finalResponse);
+        if (resolvedResponse.waitingForUser()) {
+            checkpointService.saveWaitingForUser(
+                    state.getCheckpointId(),
+                    state.getCheckpoint(),
+                    buildPendingUserInputRequest(null, finalResponse)
+            );
+            return finalResponse;
+        }
+        checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), finalResponse);
         log.info("[{}][COMPLETE] sessionId={}, finalResponseLength={}",
                 LOG_STAGE,
-                runContext.executionId(), finalResponse.length());
+                state.getRunContext().executionId(), finalResponse.length());
         return finalResponse;
         } catch (RuntimeException exception) {
-            checkpointService.saveFailed(checkpointId, checkpoint, exception.getMessage());
+            checkpointService.saveFailed(state.getCheckpointId(), state.getCheckpoint(), exception.getMessage());
             throw exception;
         }
     }
 
-    private void updateCheckpoint(String checkpointId,
-                                  AgentRunCheckpoint checkpoint,
-                                  AgentRunContext runContext,
-                                  ConversationContext conversationContext,
-                                  Skill selectedSkill,
-                                  PlanDag planDag,
-                                  List<String> executionLog,
-                                  int waveNumber,
-                                  int replanCount) {
+    private void updateCheckpoint(AgentExecutionState state) {
+        AgentRunCheckpoint checkpoint = state.getCheckpoint();
+        AgentRunContext runContext = state.getRunContext();
+        Skill selectedSkill = state.getSelectedSkill();
         checkpoint.setTask(runContext.task());
         checkpoint.setExecutionId(runContext.executionId());
         checkpoint.setExecutionType(runContext.executionType());
         checkpoint.setReferenceType(runContext.referenceType());
         checkpoint.setReferenceId(runContext.referenceId());
         checkpoint.setUserId(runContext.userId());
-        checkpoint.setPromptMemories(conversationContext.promptMemories());
+        checkpoint.setPromptMemories(state.getConversationContext().promptMemories());
         checkpoint.setSelectedSkillName(selectedSkill != null ? selectedSkill.getName() : checkpoint.getSelectedSkillName());
         checkpoint.setSelectedSkillInstructions(selectedSkill != null ? selectedSkill.getContent() : checkpoint.getSelectedSkillInstructions());
-        checkpoint.setSteps(cloneSteps(planDag.steps()));
-        checkpoint.setExecutionLog(List.copyOf(executionLog));
-        checkpoint.setWaveNumber(waveNumber);
-        checkpoint.setReplanCount(replanCount);
-        checkpointService.saveRunning(checkpointId, checkpoint);
+        checkpoint.setSteps(cloneSteps(state.getPlanDag().steps()));
+        checkpoint.setExecutionLog(List.copyOf(state.getExecutionLog()));
+        checkpoint.setWaveNumber(state.getWaveNumber());
+        checkpoint.setReplanCount(state.getReplanCount());
+        checkpointService.saveRunning(state.getCheckpointId(), checkpoint);
     }
 
     private void resetRunningSteps(List<LLMPlanResponse.PlanStep> steps) {
@@ -472,27 +475,60 @@ public class AgentExecutionService {
         }
     }
 
-    private PlanContinuationDecision reviewContinuation(AgentRunContext runContext,
-                                                        PlanDag planDag,
-                                                        List<String> executionLog,
+    private void resetWaitingSteps(List<LLMPlanResponse.PlanStep> steps) {
+        if (CollectionUtils.isEmpty(steps)) {
+            return;
+        }
+        for (LLMPlanResponse.PlanStep step : steps) {
+            if (step != null && step.getStatus() == LLMPlanResponse.PlanStep.Status.WAITING_FOR_USER) {
+                step.setStatus(LLMPlanResponse.PlanStep.Status.PENDING);
+            }
+        }
+    }
+
+    private void appendUserInput(AgentRunCheckpoint checkpoint,
+                                 PendingUserInputRequest pendingUserInputRequest,
+                                 String userInput) {
+        if (!StringUtils.hasText(userInput)) {
+            return;
+        }
+        List<String> executionLog = new ArrayList<>(checkpoint.safeExecutionLog());
+        String stepPrefix = StringUtils.hasText(pendingUserInputRequest.getStepId())
+                ? "[" + pendingUserInputRequest.getStepId() + "]"
+                : "[system]";
+        String question = StringUtils.hasText(pendingUserInputRequest.getQuestion())
+                ? " question=\"" + pendingUserInputRequest.getQuestion().replace("\"", "'") + "\""
+                : "";
+        executionLog.add(stepPrefix + "[USER_INPUT_RECEIVED][INFO]" + question + " answer=\"" + userInput.replace("\"", "'") + "\"");
+        checkpoint.setExecutionLog(executionLog);
+    }
+
+    private PendingUserInputRequest buildPendingUserInputRequest(String stepId, String question) {
+        PendingUserInputRequest pendingUserInputRequest = new PendingUserInputRequest();
+        pendingUserInputRequest.setStepId(stepId);
+        pendingUserInputRequest.setQuestion(question);
+        return pendingUserInputRequest;
+    }
+
+    private PlanContinuationDecision reviewContinuation(AgentExecutionState state,
                                                         List<String> lastWaveExecutionLog) {
         PlanContinuationDecision decision = agentPlanner.reviewPlanContinuation(
-                runContext.executionId(),
-                runContext.executionType(),
-                runContext.userId(),
-                runContext.task(),
-                planDag.steps(),
-                executionLog,
+                state.getRunContext().executionId(),
+                state.getRunContext().executionType(),
+                state.getRunContext().userId(),
+                state.getRunContext().task(),
+                state.getPlanDag().steps(),
+                state.getExecutionLog(),
                 lastWaveExecutionLog,
-                planDag.hasRunnablePendingSteps(),
-                planDag.hasPendingSteps()
+                state.getPlanDag().hasRunnablePendingSteps(),
+                state.getPlanDag().hasPendingSteps()
         );
         if (decision == null || decision.getOutcome() == null) {
             decision = new PlanContinuationDecision();
-            if (!planDag.hasPendingSteps()) {
+            if (!state.getPlanDag().hasPendingSteps()) {
                 decision.setOutcome(PlanContinuationDecision.Outcome.FINAL_RESPONSE);
                 decision.setRationale("No pending steps remain.");
-            } else if (!planDag.hasRunnablePendingSteps()) {
+            } else if (!state.getPlanDag().hasRunnablePendingSteps()) {
                 decision.setOutcome(PlanContinuationDecision.Outcome.REPLAN);
                 decision.setRationale("Pending steps are blocked.");
             } else {
@@ -503,79 +539,73 @@ public class AgentExecutionService {
         return decision;
     }
 
-    private ReplanResult replanPendingSteps(AgentRunContext runContext,
-                                            ConversationContext conversationContext,
-                                            SkillContext skillContext,
-                                            PlanDag currentDag,
-                                            List<String> executionLog,
-                                            AgentExecutionListener executionListener,
-                                            PlanContinuationDecision decision,
-                                            int replanCount) {
-        List<String> immutableStepIds = currentDag.steps().stream()
+    private ReplanResult replanPendingSteps(AgentExecutionState state,
+                                            PlanContinuationDecision decision) {
+        List<String> immutableStepIds = state.getPlanDag().steps().stream()
                 .filter(step -> step != null && step.getStatus() != LLMPlanResponse.PlanStep.Status.PENDING)
                 .filter(step -> step.getStatus() != LLMPlanResponse.PlanStep.Status.RUNNING)
                 .map(LLMPlanResponse.PlanStep::getId)
                 .toList();
         LLMPlanResponse replanResponse = agentPlanner.replan(
-                runContext.executionId(),
-                runContext.executionType(),
-                runContext.userId(),
-                runContext.task(),
-                conversationContext.promptMemories(),
-                skillContext.plannerSkills(),
-                runContext.tools(),
-                cloneSteps(currentDag.steps()),
-                executionLog,
+                state.getRunContext().executionId(),
+                state.getRunContext().executionType(),
+                state.getRunContext().userId(),
+                state.getRunContext().task(),
+                state.getConversationContext().promptMemories(),
+                state.getSkillContext().plannerSkills(),
+                state.getRunContext().tools(),
+                cloneSteps(state.getPlanDag().steps()),
+                state.getExecutionLog(),
                 immutableStepIds,
                 decision.getRationale()
         );
         if (replanResponse == null) {
-            executionLog.add("[system][replan][CANNOT_COMPLETE] Replanner returned no response.");
+            state.getExecutionLog().add("[system][replan][CANNOT_COMPLETE] Replanner returned no response.");
             return new ReplanResult(markRemainingPendingAsSkipped(
-                    currentDag,
-                    executionLog,
-                    executionListener,
-                    runContext.executionId()
+                    state.getPlanDag(),
+                    state.getExecutionLog(),
+                    state.getListener(),
+                    state.getRunContext().executionId()
             ), null, null);
         }
         normalizePlannerResponse(replanResponse);
         if (StringUtils.hasText(replanResponse.getResponse()) && CollectionUtils.isEmpty(replanResponse.getSteps())) {
             log.info("[{}][REPLAN_DIRECT_RESPONSE] sessionId={}, responseLength={}",
                     LOG_STAGE,
-                    runContext.executionId(),
+                    state.getRunContext().executionId(),
                     replanResponse.getResponse().length());
-            return new ReplanResult(currentDag, null, replanResponse.getResponse());
+            return new ReplanResult(state.getPlanDag(), null, replanResponse.getResponse());
         }
 
         List<LLMPlanResponse.PlanStep> mergedSteps = mergeImmutableAndReplannedSteps(
-                currentDag.steps(),
+                state.getPlanDag().steps(),
                 replanResponse.getSteps(),
-                replanCount,
-                executionLog
+                state.getReplanCount(),
+                state.getExecutionLog()
         );
         if (mergedSteps.stream().noneMatch(step -> step.getStatus() == LLMPlanResponse.PlanStep.Status.PENDING)) {
             log.info("[{}][REPLAN_EMPTY] sessionId={}, replanCount={}",
                     LOG_STAGE,
-                    runContext.executionId(),
-                    replanCount);
+                    state.getRunContext().executionId(),
+                    state.getReplanCount());
             return new ReplanResult(planGraphValidator.buildValidatedDag(mergedSteps), null, null);
         }
 
         PlanDag replannedDag = planGraphValidator.buildValidatedDag(mergedSteps);
-        executionListener.onPlanCreated(
-                runContext.executionId(),
+        state.getListener().onPlanCreated(
+                state.getRunContext().executionId(),
                 replanResponse.getThoughtProcess(),
                 replanResponse.getSelectedSkill(),
                 cloneSteps(replannedDag.steps())
         );
         Skill selectedSkill = skillSelectionService.resolveSelectedSkill(
                 replanResponse.getSelectedSkill(),
-                skillContext.availableSkills()
+                state.getSkillContext().availableSkills()
         );
         log.info("[{}][REPLAN_APPLIED] sessionId={}, replanCount={}, stepCount={}, pendingStepCount={}",
                 LOG_STAGE,
-                runContext.executionId(),
-                replanCount,
+                state.getRunContext().executionId(),
+                state.getReplanCount(),
                 replannedDag.steps().size(),
                 replannedDag.steps().stream()
                         .filter(step -> step.getStatus() == LLMPlanResponse.PlanStep.Status.PENDING)

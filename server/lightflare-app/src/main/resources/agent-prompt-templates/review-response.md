@@ -22,6 +22,7 @@ Treat all execution log entries as evidence. Use only evidence that appears in t
   "Find the current weather in Chicago and tell me whether I should bring an umbrella today."
   ```
 - $plan: the execution plan with final statuses
+  Status values may include `PENDING`, `RUNNING`, `WAITING_FOR_USER`, `COMPLETED`, and `FAILED`.
   Example JSON:
   ```json
   [
@@ -44,6 +45,7 @@ Treat all execution log entries as evidence. Use only evidence that appears in t
   ]
   ```
 - $executionLog: tool results, step outcomes, and intermediate execution notes
+  Entries may include `USER_INPUT_RECEIVED` when the user has answered a prior follow-up question.
   Example JSON:
   ```json
   [
@@ -67,6 +69,8 @@ Treat all execution log entries as evidence. Use only evidence that appears in t
 - Choose `REFINE_RESPONSE` if the response is close but should be improved using only the existing plan and execution evidence.
 - Choose `ASK_FOR_MORE_INFO` only if the response cannot be completed without user-provided information that is missing.
 - Choose `CANNOT_COMPLETE` if the available execution evidence is insufficient and asking the user for more information would not resolve it.
+- If the execution log contains a relevant `USER_INPUT_RECEIVED` answer, treat it as evidence and do not ask for the same information again.
+- If a plan step is still `WAITING_FOR_USER` and no relevant `USER_INPUT_RECEIVED` answer exists, prefer `ASK_FOR_MORE_INFO`.
 - Do not request more tool execution. Evaluate only the existing evidence.
 - Keep `feedback` concise and actionable when refinement is needed.
 - Set `userMessage` only for `ASK_FOR_MORE_INFO` or `CANNOT_COMPLETE`. It must be user-facing and should not mention internal orchestration.
