@@ -2,6 +2,7 @@ package com.lightflare.server.agent;
 
 import com.lightflare.server.agent.excecution.AgentExecutionService;
 import com.lightflare.server.agent.excecution.ResumeExecutionRequest;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,7 +67,7 @@ public class AgentRunnerService {
                 request.tools().size());
 
         String response = agentExecutionService.execute(
-                new AgentRunContext(
+                new HarnessRunContext(
                         request.executionId(),
                         request.executionType(),
                         request.referenceType(),

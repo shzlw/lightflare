@@ -36,6 +36,7 @@
 	</dependencyManagement>
 
 	<modules>
+		<module>lightflare-harness-core</module>
 		<module>lightflare-app</module>
 		<module>lightflare-mcp-client</module>
 		<module>lightflare-document</module>

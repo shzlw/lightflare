@@ -1,12 +1,20 @@
 package com.lightflare.server.agent.excecution;
 
-import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.plan.AgentPlanner;
 import com.lightflare.server.agent.skill.SkillContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
 import com.lightflare.server.config.AgentProperties;
 import com.lightflare.server.execution.ExecutionCheckpoint;
+import com.lightflare.server.harness.core.execution.AppliedStepResults;
+import com.lightflare.server.harness.core.execution.PendingUserInputRequest;
+import com.lightflare.server.harness.core.execution.PlanContinuationDecision;
+import com.lightflare.server.harness.core.execution.PlanDag;
+import com.lightflare.server.harness.core.execution.PlanGraphValidator;
+import com.lightflare.server.harness.core.execution.ResponseResolutionResult;
+import com.lightflare.server.harness.core.execution.StepExecutionResult;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.skill.Skill;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import lombok.RequiredArgsConstructor;
@@ -55,7 +63,7 @@ public class AgentExecutionService {
     }
 
     public String resume(ResumeExecutionRequest request) {
-        AgentExecutionListener executionListener = request.listener() != null ? request.listener() : AgentExecutionListener.NOOP;
+        HarnessExecutionListener executionListener = request.listener() != null ? request.listener() : HarnessExecutionListener.NOOP;
         ExecutionCheckpoint storedCheckpoint = checkpointService.findResumableCheckpoint(
                         request.executionType(),
                         request.referenceType(),
@@ -71,7 +79,7 @@ public class AgentExecutionService {
             checkpoint.setPendingUserInputRequest(null);
         }
 
-        AgentRunContext runContext = new AgentRunContext(
+        HarnessRunContext runContext = new HarnessRunContext(
                 checkpoint.getExecutionId(),
                 checkpoint.getExecutionType(),
                 checkpoint.getReferenceType(),
@@ -126,11 +134,11 @@ public class AgentExecutionService {
         return continueExecution(state);
     }
 
-    public String execute(AgentRunContext runContext,
+    public String execute(HarnessRunContext runContext,
                           ConversationContext conversationContext,
                           SkillContext skillContext,
-                          AgentExecutionListener listener) {
-        AgentExecutionListener executionListener = listener != null ? listener : AgentExecutionListener.NOOP;
+                          HarnessExecutionListener listener) {
+        HarnessExecutionListener executionListener = listener != null ? listener : HarnessExecutionListener.NOOP;
         log.info("[{}][START] sessionId={}, taskLength={}, toolCount={}, memoryCount={}, skillCount={}",
                 LOG_STAGE,
                 runContext.executionId(),
@@ -446,7 +454,7 @@ public class AgentExecutionService {
 
     private void updateCheckpoint(AgentExecutionState state) {
         AgentRunCheckpoint checkpoint = state.getCheckpoint();
-        AgentRunContext runContext = state.getRunContext();
+        HarnessRunContext runContext = state.getRunContext();
         Skill selectedSkill = state.getSelectedSkill();
         checkpoint.setTask(runContext.task());
         checkpoint.setExecutionId(runContext.executionId());
@@ -709,7 +717,7 @@ public class AgentExecutionService {
 
     private PlanDag markRemainingPendingAsSkipped(PlanDag planDag,
                                                   List<String> executionLog,
-                                                  AgentExecutionListener listener,
+                                                  HarnessExecutionListener listener,
                                                   String executionId) {
         for (LLMPlanResponse.PlanStep step : planDag.steps()) {
             if (step == null || step.getStatus() != LLMPlanResponse.PlanStep.Status.PENDING) {

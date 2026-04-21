@@ -1,8 +1,10 @@
 package com.lightflare.server.agent.excecution;
 
-import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.agent.plan.AgentPlanner;
 import com.lightflare.server.config.AgentProperties;
+import com.lightflare.server.harness.core.execution.ResponseResolution;
+import com.lightflare.server.harness.core.execution.ResponseResolutionResult;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,13 +23,13 @@ public class ResponseResolver {
     private final AgentPlanner agentPlanner;
     private final AgentProperties agentProperties;
 
-    public String resolve(AgentRunContext runContext,
+    public String resolve(HarnessRunContext runContext,
                           List<LLMPlanResponse.PlanStep> steps,
                           List<String> executionLog) {
         return resolveWithMetadata(runContext, steps, executionLog).response();
     }
 
-    public ResponseResolutionResult resolveWithMetadata(AgentRunContext runContext,
+    public ResponseResolutionResult resolveWithMetadata(HarnessRunContext runContext,
                                                 List<LLMPlanResponse.PlanStep> steps,
                                                 List<String> executionLog) {
         String candidateResponse = agentPlanner.composeResponse(
@@ -122,7 +124,7 @@ public class ResponseResolver {
         return new ResponseResolutionResult(candidateResponse, false);
     }
 
-    private String buildStatusFallback(AgentRunContext runContext, List<LLMPlanResponse.PlanStep> steps) {
+    private String buildStatusFallback(HarnessRunContext runContext, List<LLMPlanResponse.PlanStep> steps) {
         long completedSteps = steps.stream()
                 .filter(step -> step.getStatus() == LLMPlanResponse.PlanStep.Status.COMPLETED)
                 .count();

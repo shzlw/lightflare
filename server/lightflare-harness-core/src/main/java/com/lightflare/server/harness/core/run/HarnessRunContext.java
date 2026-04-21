@@ -1,11 +1,10 @@
-package com.lightflare.server.agent;
+package com.lightflare.server.harness.core.run;
 
-import com.lightflare.server.agent.tool.ToolExecutionRouter;
+import com.lightflare.server.harness.core.tool.ToolExecutionRouter;
 import com.lightflare.server.tools.core.ToolDefinition;
-
 import java.util.List;
 
-public record AgentRunContext(
+public record HarnessRunContext(
         String executionId,
         String executionType,
         String referenceType,
@@ -23,7 +22,7 @@ public record AgentRunContext(
     public static final String REFERENCE_TYPE_WORKFLOW_STEP = "workflow_step";
     public static final String REFERENCE_TYPE_TASK = "task";
 
-    public AgentRunContext {
+    public HarnessRunContext {
         tools = tools == null ? List.of() : List.copyOf(tools);
     }
 }

@@ -1,6 +1,7 @@
 package com.lightflare.server.agent.excecution;
 
 import com.lightflare.server.agent.prompts.MemoryPromptItem;
+import com.lightflare.server.harness.core.execution.PendingUserInputRequest;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import java.util.ArrayList;
 import java.util.List;

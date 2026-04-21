@@ -1,12 +1,11 @@
-package com.lightflare.server.agent.excecution;
+package com.lightflare.server.harness.core.event;
 
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
-
 import java.util.List;
 
-public interface AgentExecutionListener {
+public interface HarnessExecutionListener {
 
-    AgentExecutionListener NOOP = new AgentExecutionListener() {
+    HarnessExecutionListener NOOP = new HarnessExecutionListener() {
     };
 
     default void onPlanCreated(String executionId,

@@ -1,7 +1,7 @@
 package com.lightflare.server.agent.tool;
 
-import com.lightflare.server.agent.AgentRunContext;
-import com.lightflare.server.agent.excecution.PlanStepFormatter;
+import com.lightflare.server.harness.core.execution.PlanStepFormatter;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.llmproviders.core.LLMGetResponse;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import com.lightflare.server.llmproviders.core.LLMStepResponse;
@@ -33,7 +33,7 @@ public class ToolCallExecutor {
 
     private final PlanStepFormatter planStepFormatter;
 
-    public ToolResult handleToolAction(AgentRunContext runContext,
+    public ToolResult handleToolAction(HarnessRunContext runContext,
                                        LLMPlanResponse.PlanStep step,
                                        LLMStepResponse stepResponse,
                                        List<String> runEntries,
@@ -78,7 +78,7 @@ public class ToolCallExecutor {
         return toolResult;
     }
 
-    public LLMStepResponse normalizeStepResponse(AgentRunContext runContext, LLMStepResponse stepResponse) {
+    public LLMStepResponse normalizeStepResponse(HarnessRunContext runContext, LLMStepResponse stepResponse) {
         if (stepResponse == null || stepResponse.getAction() == null) {
             return stepResponse;
         }
@@ -136,7 +136,7 @@ public class ToolCallExecutor {
         return "Missing required tool inputs: " + String.join(", ", stepResponse.getMissingInputs());
     }
 
-    private ToolResult executeToolCall(AgentRunContext runContext, LLMGetResponse.ToolCall toolCall) {
+    private ToolResult executeToolCall(HarnessRunContext runContext, LLMGetResponse.ToolCall toolCall) {
         if (toolCall == null || !StringUtils.hasText(toolCall.getToolName())) {
             throw new IllegalArgumentException("Tool action requires a toolCall with toolName");
         }
@@ -167,7 +167,7 @@ public class ToolCallExecutor {
         }
     }
 
-    private ToolDefinition findDefinition(AgentRunContext runContext, String toolName) {
+    private ToolDefinition findDefinition(HarnessRunContext runContext, String toolName) {
         if (runContext != null && runContext.toolExecutionRouter() != null) {
             return runContext.toolExecutionRouter().findDefinition(toolName);
         }

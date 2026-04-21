@@ -1,9 +1,13 @@
 package com.lightflare.server.agent.excecution;
 
-import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.agent.plan.AgentPlanner;
 import com.lightflare.server.agent.tool.ToolCallExecutor;
 import com.lightflare.server.config.AgentProperties;
+import com.lightflare.server.harness.core.execution.PendingUserInputRequest;
+import com.lightflare.server.harness.core.execution.PlanStepFormatter;
+import com.lightflare.server.harness.core.execution.StepExecutionResult;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import com.lightflare.server.llmproviders.core.LLMStepResponse;
 import com.lightflare.server.agent.prompts.StepExecutionStatePrompt;
@@ -30,11 +34,11 @@ public class StepExecutionService {
     private final ToolCallExecutor toolCallExecutor;
     private final PlanStepFormatter planStepFormatter;
 
-    public StepExecutionResult executeStepWithRetries(AgentRunContext runContext,
+    public StepExecutionResult executeStepWithRetries(HarnessRunContext runContext,
                                                       StepExecutionContext executionContext,
                                                       LLMPlanResponse.PlanStep step,
-                                                      AgentExecutionListener listener) {
-        AgentExecutionListener executionListener = listener != null ? listener : AgentExecutionListener.NOOP;
+                                                      HarnessExecutionListener listener) {
+        HarnessExecutionListener executionListener = listener != null ? listener : HarnessExecutionListener.NOOP;
         if (step == null) {
             throw new IllegalStateException("Current step snapshot must not be null");
         }
@@ -241,7 +245,7 @@ public class StepExecutionService {
                                                    List<String> runEntries,
                                                    String userMessage,
                                                    PendingUserInputRequest pendingUserInputRequest,
-                                                   AgentExecutionListener listener,
+                                                   HarnessExecutionListener listener,
                                                    String executionId) {
         List<String> finalEntries = new ArrayList<>(runEntries);
         finalEntries.add(planStepFormatter.formatStepEntry(step, "STEP_STATUS", "Status=" + status));

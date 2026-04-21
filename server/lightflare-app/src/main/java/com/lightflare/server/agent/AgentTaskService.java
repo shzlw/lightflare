@@ -1,11 +1,12 @@
 package com.lightflare.server.agent;
 
-import com.lightflare.server.agent.excecution.AgentExecutionListener;
 import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
-import com.lightflare.server.agent.tool.ToolExecutionRouter;
 import com.lightflare.server.agent.tool.ToolExecutionRouters;
 import com.lightflare.server.agent.tool.ToolService;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
+import com.lightflare.server.harness.core.tool.ToolExecutionRouter;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -23,19 +24,19 @@ public class AgentTaskService {
     private final AgentRunnerService agentRunnerService;
 
     public String executeStateless(String executionId, String userId, String task) {
-        return executeStateless(executionId, userId, task, AgentExecutionListener.NOOP);
+        return executeStateless(executionId, userId, task, HarnessExecutionListener.NOOP);
     }
 
     public String executeStateless(String executionId,
                                    String userId,
                                    String task,
-                                   AgentExecutionListener listener) {
+                                   HarnessExecutionListener listener) {
         String resolvedExecutionId = StringUtils.hasText(executionId) ? executionId : "task-" + UUID.randomUUID();
         ToolExecutionRouter toolExecutionRouter = ToolExecutionRouters.normal(toolService);
         AgentTaskRequest request = new AgentTaskRequest(
                 resolvedExecutionId,
-                AgentRunContext.EXECUTION_TYPE_TASK,
-                AgentRunContext.REFERENCE_TYPE_TASK,
+                HarnessRunContext.EXECUTION_TYPE_TASK,
+                HarnessRunContext.REFERENCE_TYPE_TASK,
                 resolvedExecutionId,
                 userId,
                 task,
@@ -53,8 +54,8 @@ public class AgentTaskService {
         ToolExecutionRouter toolExecutionRouter = ToolExecutionRouters.normal(toolService);
         AgentTaskRequest request = new AgentTaskRequest(
                 resolvedExecutionId,
-                AgentRunContext.EXECUTION_TYPE_WORKFLOW,
-                AgentRunContext.REFERENCE_TYPE_WORKFLOW_STEP,
+                HarnessRunContext.EXECUTION_TYPE_WORKFLOW,
+                HarnessRunContext.REFERENCE_TYPE_WORKFLOW_STEP,
                 StringUtils.hasText(referenceId) ? referenceId : resolvedExecutionId,
                 userId,
                 task,
@@ -62,7 +63,7 @@ public class AgentTaskService {
                 toolExecutionRouter,
                 new ConversationContext(null, List.of()),
                 skillSelectionService.buildSkillContext(null),
-                AgentExecutionListener.NOOP
+                HarnessExecutionListener.NOOP
         );
         return execute(request);
     }

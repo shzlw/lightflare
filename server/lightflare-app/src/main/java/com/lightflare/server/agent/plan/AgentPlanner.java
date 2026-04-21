@@ -1,8 +1,8 @@
 package com.lightflare.server.agent.plan;
 
+import com.lightflare.server.harness.core.execution.PlanContinuationDecision;
+import com.lightflare.server.harness.core.execution.ResponseResolution;
 import com.lightflare.server.agent.excecution.StepExecutionContext;
-import com.lightflare.server.agent.excecution.PlanContinuationDecision;
-import com.lightflare.server.agent.excecution.ResponseResolution;
 import com.lightflare.server.agent.prompts.*;
 import com.lightflare.server.agent.usage.AgentUsageRecorder;
 import com.lightflare.server.llmproviders.core.LLMFinalResponse;

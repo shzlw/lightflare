@@ -1,6 +1,6 @@
 package com.lightflare.server.chat;
 
-import com.lightflare.server.agent.excecution.AgentExecutionListener;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
 import com.lightflare.server.chat.events.ChatStreamEvent;
 import com.lightflare.server.chat.events.ChatStreamEventType;
 import com.lightflare.server.chat.events.ChatStreamFinalResponseEvent;
@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
-public class SseAgentExecutionListener implements AgentExecutionListener {
+public class SseAgentExecutionListener implements HarnessExecutionListener {
 
     private final SseEmitter emitter;
     private final AtomicBoolean closed = new AtomicBoolean(false);

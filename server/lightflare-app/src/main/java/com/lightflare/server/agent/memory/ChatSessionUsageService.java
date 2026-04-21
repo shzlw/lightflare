@@ -1,7 +1,7 @@
 package com.lightflare.server.agent.memory;
 
-import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.agent.usage.AgentUsageRecorder;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.llmproviders.core.LLMResponse;
 import com.lightflare.server.chat.ChatSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ public class ChatSessionUsageService implements AgentUsageRecorder {
             return;
         }
 
-        if (!AgentRunContext.EXECUTION_TYPE_CHAT.equals(executionType)) {
+        if (!HarnessRunContext.EXECUTION_TYPE_CHAT.equals(executionType)) {
             log.info("Skipping chat token usage persistence for executionId={}, executionType={}",
                     executionId,
                     executionType);

@@ -1,12 +1,12 @@
 package com.lightflare.server.agent.memory;
 
-import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.contextsearch.ContextSearchRequest;
 import com.lightflare.server.contextsearch.ContextSearchResult;
 import com.lightflare.server.contextsearch.ContextSearchResultType;
 import com.lightflare.server.contextsearch.ContextSearchService;
 import com.lightflare.server.contextsearch.ContextSearchTarget;
 import com.lightflare.server.config.MemoryProperties;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.chat.ChatMessage;
 import com.lightflare.server.chat.ChatSession;
 import com.lightflare.server.memory.Memory;
@@ -71,7 +71,7 @@ public class ConversationContextService {
      * hit for the second message, which is a minor redundancy because it is already in
      * the session history list.</p>
      */
-    public ConversationContext prepare(AgentRunContext runContext) {
+    public ConversationContext prepare(HarnessRunContext runContext) {
         log.info("Preparing conversation context for sessionId={}, userId={}",
                 runContext.executionId(), runContext.userId());
         persistChatMessage(runContext);
@@ -97,7 +97,7 @@ public class ConversationContextService {
         return new ConversationContext(currentMemory, promptMemories);
     }
 
-    public void persistAssistantResponse(AgentRunContext runContext, String response) {
+    public void persistAssistantResponse(HarnessRunContext runContext, String response) {
         if (!StringUtils.hasText(response)) {
             log.info("Skipping assistant response persistence for sessionId={} because response is empty",
                     runContext.executionId());
@@ -126,7 +126,7 @@ public class ConversationContextService {
                 runContext.executionId(), response.length());
     }
 
-    private void persistChatMessage(AgentRunContext runContext) {
+    private void persistChatMessage(HarnessRunContext runContext) {
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.setId(UUID.randomUUID().toString());
         chatMessage.setSessionId(runContext.executionId());
@@ -137,7 +137,7 @@ public class ConversationContextService {
                 runContext.executionId(), runContext.task() != null ? runContext.task().length() : 0);
     }
 
-    private Memory persistChatMessageAsMemory(AgentRunContext runContext) {
+    private Memory persistChatMessageAsMemory(HarnessRunContext runContext) {
         Memory memory = new Memory();
         memory.setId(UUID.randomUUID().toString());
         memory.setOwnerUserId(runContext.userId());
@@ -173,7 +173,7 @@ public class ConversationContextService {
                 .isPresent();
     }
 
-    private List<Memory> compactMemory(AgentRunContext runContext, Memory currentMemory, List<Memory> memoryList) {
+    private List<Memory> compactMemory(HarnessRunContext runContext, Memory currentMemory, List<Memory> memoryList) {
         if (CollectionUtils.isEmpty(memoryList)) {
             log.info("Skipping memory compaction for sessionId={} because memory list is empty", runContext.executionId());
             return memoryList;

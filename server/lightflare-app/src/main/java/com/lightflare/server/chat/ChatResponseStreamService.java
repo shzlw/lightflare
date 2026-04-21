@@ -1,7 +1,7 @@
 package com.lightflare.server.chat;
 
 import com.lightflare.server.agent.AgentService;
-import com.lightflare.server.agent.excecution.AgentExecutionListener;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
 import com.lightflare.server.auth.AppRoles;
 import com.lightflare.server.auth.AuthService;
 import com.lightflare.server.auth.UserContext;
@@ -57,7 +57,7 @@ public class ChatResponseStreamService {
                                                  CreateChatRequest chatRequest,
                                                  SseEmitter emitter) {
         String assistantMessageId = UUID.randomUUID().toString();
-        AgentExecutionListener listener = new SseAgentExecutionListener(emitter);
+        HarnessExecutionListener listener = new SseAgentExecutionListener(emitter);
 
         try {
             sendEvent(emitter, ChatStreamEvent.builder()

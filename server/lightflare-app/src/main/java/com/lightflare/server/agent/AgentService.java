@@ -1,14 +1,15 @@
 package com.lightflare.server.agent;
 
-import com.lightflare.server.agent.excecution.AgentExecutionListener;
 import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.memory.ConversationContextService;
 import com.lightflare.server.agent.skill.SkillContext;
 import com.lightflare.server.agent.skill.SkillSelectionService;
 import com.lightflare.server.agent.tool.InternalToolService;
-import com.lightflare.server.agent.tool.ToolExecutionRouter;
 import com.lightflare.server.agent.tool.ToolExecutionRouters;
 import com.lightflare.server.agent.tool.ToolService;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
+import com.lightflare.server.harness.core.tool.ToolExecutionRouter;
 import com.lightflare.server.chat.CreateChatRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,18 +32,18 @@ public class AgentService {
     private final AgentRunnerService agentRunnerService;
 
     public String process(CreateChatRequest request) {
-        return process(request, AgentExecutionListener.NOOP);
+        return process(request, HarnessExecutionListener.NOOP);
     }
 
-    public String process(CreateChatRequest request, AgentExecutionListener listener) {
+    public String process(CreateChatRequest request, HarnessExecutionListener listener) {
         Objects.requireNonNull(request, "request must not be null");
         log.info("[{}][START] sessionId={}, userId={}", LOG_STAGE, request.getSessionId(), request.getUserId());
         ToolExecutionRouter toolExecutionRouter = ToolExecutionRouters.combined(toolService, internalToolService);
 
-        AgentRunContext runContext = new AgentRunContext(
+        HarnessRunContext runContext = new HarnessRunContext(
                 request.getSessionId(),
-                AgentRunContext.EXECUTION_TYPE_CHAT,
-                AgentRunContext.REFERENCE_TYPE_CHAT_SESSION,
+                HarnessRunContext.EXECUTION_TYPE_CHAT,
+                HarnessRunContext.REFERENCE_TYPE_CHAT_SESSION,
                 request.getSessionId(),
                 request.getUserId(),
                 request.getData(),

@@ -1,10 +1,6 @@
-package com.lightflare.server.agent.excecution;
+package com.lightflare.server.harness.core.execution;
 
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -16,17 +12,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@Slf4j
-@Service
 public class PlanGraphValidator {
 
-    private static final String LOG_STAGE = "PLAN_GRAPH";
-
     public PlanDag buildValidatedDag(List<LLMPlanResponse.PlanStep> steps) {
-        log.info("[{}][VALIDATE_START] stepCount={}", LOG_STAGE, steps != null ? steps.size() : 0);
+        if (steps == null) {
+            throw new IllegalStateException("Steps must not be null");
+        }
         Map<String, LLMPlanResponse.PlanStep> stepsById = new LinkedHashMap<>();
         for (LLMPlanResponse.PlanStep step : steps) {
-            if (step == null || !StringUtils.hasText(step.getId())) {
+            if (step == null || isBlank(step.getId())) {
                 throw new IllegalStateException("Planner returned a step without an id");
             }
             if (stepsById.putIfAbsent(step.getId(), step) != null) {
@@ -78,25 +72,27 @@ public class PlanGraphValidator {
         if (visited != stepsById.size()) {
             throw new IllegalStateException("Planner returned cyclic step dependencies");
         }
-        log.info("[{}][VALIDATE_OK] stepCount={}, visitedNodes={}", LOG_STAGE, stepsById.size(), visited);
 
         Map<String, PlanDag.PlanNode> nodesById = new LinkedHashMap<>();
         for (LLMPlanResponse.PlanStep step : steps) {
             List<String> dependencies = sanitizeDependencies(step.getDependsOn()).stream()
                     .distinct()
                     .toList();
-            List<String> dependents = List.copyOf(outgoingEdges.getOrDefault(step.getId(), List.of()));
-            nodesById.put(step.getId(), new PlanDag.PlanNode(step, dependencies, dependents));
+            nodesById.put(step.getId(), new PlanDag.PlanNode(step, dependencies));
         }
         return new PlanDag(List.copyOf(steps), nodesById);
     }
 
     private List<String> sanitizeDependencies(List<String> dependencies) {
-        if (CollectionUtils.isEmpty(dependencies)) {
+        if (dependencies == null || dependencies.isEmpty()) {
             return List.of();
         }
         return dependencies.stream()
-                .filter(StringUtils::hasText)
+                .filter(dependency -> !isBlank(dependency))
                 .toList();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

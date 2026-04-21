@@ -1,9 +1,10 @@
 package com.lightflare.server.agent;
 
-import com.lightflare.server.agent.excecution.AgentExecutionListener;
 import com.lightflare.server.agent.memory.ConversationContext;
 import com.lightflare.server.agent.skill.SkillContext;
-import com.lightflare.server.agent.tool.ToolExecutionRouter;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
+import com.lightflare.server.harness.core.tool.ToolExecutionRouter;
 import com.lightflare.server.tools.core.ToolDefinition;
 import java.util.List;
 
@@ -18,14 +19,14 @@ public record AgentTaskRequest(
         ToolExecutionRouter toolExecutionRouter,
         ConversationContext conversationContext,
         SkillContext skillContext,
-        AgentExecutionListener listener
+        HarnessExecutionListener listener
 ) {
 
     public AgentTaskRequest {
-        executionType = executionType != null ? executionType : AgentRunContext.EXECUTION_TYPE_TASK;
-        referenceType = referenceType != null ? referenceType : AgentRunContext.REFERENCE_TYPE_TASK;
+        executionType = executionType != null ? executionType : HarnessRunContext.EXECUTION_TYPE_TASK;
+        referenceType = referenceType != null ? referenceType : HarnessRunContext.REFERENCE_TYPE_TASK;
         referenceId = referenceId != null ? referenceId : executionId;
         tools = tools == null ? List.of() : List.copyOf(tools);
-        listener = listener != null ? listener : AgentExecutionListener.NOOP;
+        listener = listener != null ? listener : HarnessExecutionListener.NOOP;
     }
 }

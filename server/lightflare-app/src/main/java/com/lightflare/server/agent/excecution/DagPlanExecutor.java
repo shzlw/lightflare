@@ -1,7 +1,13 @@
 package com.lightflare.server.agent.excecution;
 
-import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.config.AgentProperties;
+import com.lightflare.server.harness.core.execution.AppliedStepResults;
+import com.lightflare.server.harness.core.execution.PendingUserInputRequest;
+import com.lightflare.server.harness.core.execution.PlanDag;
+import com.lightflare.server.harness.core.execution.PlanStepFormatter;
+import com.lightflare.server.harness.core.execution.StepExecutionResult;
+import com.lightflare.server.harness.core.event.HarnessExecutionListener;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +38,7 @@ public class DagPlanExecutor {
     @Qualifier("dagPlanTaskExecutor")
     private final Executor dagPlanTaskExecutor;
 
-    public List<LLMPlanResponse.PlanStep> selectNextParallelSteps(AgentRunContext runContext, PlanDag planDag) {
+    public List<LLMPlanResponse.PlanStep> selectNextParallelSteps(HarnessRunContext runContext, PlanDag planDag) {
         List<LLMPlanResponse.PlanStep> readySteps = planDag.readySteps();
         if (readySteps.isEmpty()) {
             log.info("[{}][READY_NONE] sessionId={}, pendingStepCount={}",
@@ -57,7 +63,7 @@ public class DagPlanExecutor {
 
     public void markBlockedStepsAsFailed(PlanDag planDag,
                                          List<String> executionLog,
-                                         AgentExecutionListener listener,
+                                         HarnessExecutionListener listener,
                                          String executionId) {
         for (LLMPlanResponse.PlanStep step : planDag.steps()) {
             if (step == null || step.getStatus() != LLMPlanResponse.PlanStep.Status.PENDING) {

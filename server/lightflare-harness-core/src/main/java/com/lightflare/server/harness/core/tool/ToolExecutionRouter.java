@@ -1,4 +1,4 @@
-package com.lightflare.server.agent.tool;
+package com.lightflare.server.harness.core.tool;
 
 import com.lightflare.server.tools.core.ToolArgument;
 import com.lightflare.server.tools.core.ToolDefinition;

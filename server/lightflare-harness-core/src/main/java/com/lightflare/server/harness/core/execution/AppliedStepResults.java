@@ -1,6 +1,6 @@
-package com.lightflare.server.agent.excecution;
+package com.lightflare.server.harness.core.execution;
 
-record AppliedStepResults(
+public record AppliedStepResults(
         String userMessage,
         PendingUserInputRequest pendingUserInputRequest
 ) {

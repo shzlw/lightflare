@@ -1,7 +1,8 @@
 package com.lightflare.server.agent.excecution;
 
-import com.lightflare.server.agent.AgentRunContext;
 import com.lightflare.server.agent.memory.ConversationContext;
+import com.lightflare.server.harness.core.execution.PendingUserInputRequest;
+import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.execution.ExecutionCheckpoint;
 import com.lightflare.server.execution.ExecutionCheckpointRepository;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
@@ -52,7 +53,7 @@ public class AgentExecutionCheckpointService {
         return JsonUtils.fromJson(checkpoint.payload(), AgentRunCheckpoint.class);
     }
 
-    public String create(AgentRunContext runContext,
+    public String create(HarnessRunContext runContext,
                          ConversationContext conversationContext,
                          Skill selectedSkill,
                          List<LLMPlanResponse.PlanStep> steps,
