@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder
 public record ChatSessionResponse(
     String id,
+    String projectId,
     String title,
     String userId,
     Integer totalTokens,

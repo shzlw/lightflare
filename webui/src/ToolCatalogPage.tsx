@@ -42,21 +42,21 @@ export default function ToolCatalogPage() {
 
       <section className="space-y-6">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="p-3 rounded-md border bg-card/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="relative overflow-hidden border border-black bg-card/50 p-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Tools</span>
               <span className="text-xl font-bold leading-tight">{tools.length}</span>
             </div>
             <Wrench className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 text-primary/10 group-hover:text-primary/20 transition-colors" />
           </div>
-          <div className="p-3 rounded-md border bg-emerald-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="relative overflow-hidden border border-black bg-emerald-500/5 p-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Local Definitions</span>
               <span className="text-xl font-bold leading-tight text-emerald-700 dark:text-emerald-300">{tools.filter(t => t.sourceType === 'LOCAL').length}</span>
             </div>
             <Boxes className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors" />
           </div>
-          <div className="p-3 rounded-md border bg-blue-500/5 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="relative overflow-hidden border border-black bg-blue-500/5 p-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">MCP Integrations</span>
               <span className="text-xl font-bold leading-tight text-blue-700 dark:text-blue-300">{tools.filter(t => t.sourceType === 'MCP').length}</span>
@@ -65,11 +65,11 @@ export default function ToolCatalogPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 items-center justify-between bg-muted/30 p-2 rounded-lg">
+        <div className="flex flex-col items-center justify-between gap-4 border border-black bg-muted/30 p-2">
           <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="h-10 pl-10 rounded-md w-full bg-background border-border/60 shadow-sm focus-visible:ring-primary/30"
+              className="h-10 w-full border-black bg-background pl-10 rounded-none"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search tool gallery by name, source, or category..."

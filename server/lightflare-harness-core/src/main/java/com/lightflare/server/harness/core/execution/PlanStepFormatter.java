@@ -1,6 +1,9 @@
 package com.lightflare.server.harness.core.execution;
 
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
+import org.springframework.stereotype.Component;
+
+@Component
 public class PlanStepFormatter {
 
     public String formatStepEntry(LLMPlanResponse.PlanStep step, String type, String content) {

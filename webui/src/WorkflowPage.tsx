@@ -487,7 +487,7 @@ export default function WorkflowPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline" className="gap-2">
-            <NavLink to={workflow?.id ? `/workspace/chats?workflowMode=1&workflowId=${encodeURIComponent(workflow.id)}` : '/workspace/chats?workflowMode=1'}>
+            <NavLink to="/workspace/projects">
               <MessageSquare className="h-4 w-4" />
               Modify in Chat
             </NavLink>

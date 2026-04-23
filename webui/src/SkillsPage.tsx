@@ -279,21 +279,21 @@ export default function SkillsPage() {
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div className="flex items-center gap-4">
             <h3 className="text-xl font-semibold">Skills Library</h3>
-            <span className="bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">{totalItems} total</span>
+            <span className="border border-black bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">{totalItems} total</span>
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">
-            <Button className="w-full md:w-auto shadow-sm hover:shadow-md transition-shadow gap-2" onClick={openCreateSheet}>
+            <Button className="w-full gap-2 rounded-none border border-black md:w-auto" onClick={openCreateSheet}>
               <Plus className="h-4 w-4" /> New skill
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted/30 p-2 rounded-lg">
+        <div className="flex flex-col items-center justify-between gap-4 border border-black bg-muted/30 p-2 md:flex-row">
           <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="h-10 pl-10 rounded-md w-full bg-background border-border/60 shadow-sm focus-visible:ring-primary/30"
+              className="h-10 w-full rounded-none border-black bg-background pl-10"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search skills library..."
@@ -353,11 +353,11 @@ export default function SkillsPage() {
               size="sm"
               onClick={() => setPage((current) => Math.max(0, current - 1))}
               disabled={page === 0 || isListLoading}
-              className="h-8 w-8 p-0 rounded-md shadow-sm"
+              className="h-8 w-8 rounded-none border-black p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="bg-muted px-3 py-1 rounded-md text-xs font-mono font-bold text-muted-foreground">
+            <div className="border border-black bg-muted px-3 py-1 text-xs font-mono font-bold text-muted-foreground">
               {totalPages === 0 ? 0 : page + 1} / {Math.max(totalPages, 1)}
             </div>
             <Button
@@ -365,7 +365,7 @@ export default function SkillsPage() {
               size="sm"
               onClick={() => setPage((current) => current + 1)}
               disabled={isListLoading || totalPages === 0 || page >= totalPages - 1}
-              className="h-8 w-8 p-0 rounded-md shadow-sm"
+              className="h-8 w-8 rounded-none border-black p-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -376,7 +376,7 @@ export default function SkillsPage() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent
           side="right"
-          className="!w-[90vw] sm:!max-w-2xl md:!max-w-3xl lg:!max-w-4xl xl:!max-w-5xl overflow-y-auto border-l border-border/40 shadow-2xl p-0 flex flex-col"
+          className="!w-[90vw] flex flex-col overflow-y-auto border-l border-black p-0 sm:!max-w-2xl md:!max-w-3xl lg:!max-w-4xl xl:!max-w-5xl"
         >
           <div className="p-6 md:p-8 shrink-0 border-b bg-background/95 backdrop-blur sticky top-0 z-10 supports-[backdrop-filter]:bg-background/60">
             <SheetHeader>
@@ -401,40 +401,40 @@ export default function SkillsPage() {
           <div className="p-6 md:p-8 flex-1">
             {sheetMode === 'detail' && isDetailLoading ? (
               <div className="space-y-6">
-                <Skeleton className="h-20 w-full rounded-xl" />
-                <Skeleton className="h-40 w-full rounded-xl" />
+                <Skeleton className="h-20 w-full rounded-none" />
+                <Skeleton className="h-40 w-full rounded-none" />
               </div>
             ) : null}
 
             {sheetMode === 'detail' ? (
               selectedSkill ? (
                 <div className="space-y-8 animate-in fade-in duration-300">
-                  <section className="bg-muted/20 p-4 rounded-xl border border-border/40 inline-flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="bg-background shadow-sm px-3 py-1 text-xs font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500"></span> {selectedSkill.visibility}</Badge>
-                    <Badge variant="outline" className="bg-background shadow-sm px-3 py-1 text-xs font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500"></span> {selectedSkill.source}</Badge>
-                    <Badge variant="outline" className="bg-background shadow-sm px-3 py-1 text-xs font-semibold flex items-center gap-1.5"><Clock className="h-3 w-3" /> Updated {formatDate(selectedSkill.updatedAt)}</Badge>
+                  <section className="inline-flex flex-wrap items-center gap-2 border border-black bg-muted/20 p-4">
+                    <Badge variant="outline" className="flex items-center gap-1.5 border-black bg-background px-3 py-1 text-xs font-semibold rounded-none"><span className="h-2 w-2 bg-blue-500"></span> {selectedSkill.visibility}</Badge>
+                    <Badge variant="outline" className="flex items-center gap-1.5 border-black bg-background px-3 py-1 text-xs font-semibold rounded-none"><span className="h-2 w-2 bg-purple-500"></span> {selectedSkill.source}</Badge>
+                    <Badge variant="outline" className="flex items-center gap-1.5 border-black bg-background px-3 py-1 text-xs font-semibold rounded-none"><Clock className="h-3 w-3" /> Updated {formatDate(selectedSkill.updatedAt)}</Badge>
                   </section>
 
                   <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-2"><User className="h-3 w-3" />Owner Context</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedSkill.userId)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-2"><Globe className="h-3 w-3" />Visibility</span>
                       <p className="font-medium text-sm">{selectedSkill.visibility}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-2"><Database className="h-3 w-3" />Source</span>
                       <p className="font-medium text-sm">{formatValue(selectedSkill.source)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block text-muted-foreground/80">Created At</span>
                       <p className="text-sm font-medium">{formatDate(selectedSkill.createdAt)}</p>
                     </article>
                   </section>
 
-                  <section className="rounded-xl border shadow-sm overflow-hidden flex flex-col bg-card">
+                  <section className="flex flex-col overflow-hidden border border-black bg-card">
                     <div className="bg-muted/40 px-5 py-4 flex items-center justify-between border-b">
                       <span className="text-sm font-bold flex items-center gap-2"><FileText className="h-4 w-4" /> Operational Instructions</span>
                       <span className="text-[10px] font-bold tracking-wider uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-sm">
@@ -449,7 +449,7 @@ export default function SkillsPage() {
                   </section>
                 </div>
               ) : (
-                <div className="text-muted-foreground text-center py-12 border-2 border-dashed rounded-xl">Select a skill to inspect its operational logic.</div>
+                <div className="border border-black py-12 text-center text-muted-foreground">Select a skill to inspect its operational logic.</div>
               )
             ) : (
               <form className="space-y-6 animate-in fade-in duration-300" onSubmit={handleSubmit}>
@@ -459,7 +459,7 @@ export default function SkillsPage() {
                       <Edit3 className="h-3.5 w-3.5 text-primary" /> Skill Name
                     </label>
                     <Input
-                      className="h-10 rounded-md bg-background border-border/60 focus-visible:ring-primary/20"
+                      className="h-10 rounded-none border-black bg-background"
                       value={form.name}
                       onChange={(event) => updateField('name', event.target.value)}
                       placeholder="Enter a descriptive name (e.g., Tactical Planner)"
@@ -472,7 +472,7 @@ export default function SkillsPage() {
                       <Globe className="h-3.5 w-3.5 text-primary" /> Visibility
                     </label>
                     <Select value={form.visibility} onValueChange={(value) => updateField('visibility', value)}>
-                      <SelectTrigger className="h-10 w-full rounded-md bg-background border-border/60">
+                      <SelectTrigger className="h-10 w-full rounded-none border-black bg-background">
                         <SelectValue placeholder="Select visibility" />
                       </SelectTrigger>
                       <SelectContent>
@@ -488,7 +488,7 @@ export default function SkillsPage() {
                     <FileText className="h-3.5 w-3.5 text-primary" /> Brief Description
                   </label>
                   <Input
-                    className="h-10 rounded-md bg-background border-border/60 focus-visible:ring-primary/20"
+                    className="h-10 rounded-none border-black bg-background"
                     value={form.description}
                     onChange={(event) => updateField('description', event.target.value)}
                     placeholder="Provide a brief overview of this skill's core function..."
@@ -503,7 +503,7 @@ export default function SkillsPage() {
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Supports Markdown</span>
                   </div>
                   <textarea
-                    className="w-full min-h-[400px] p-4 text-sm font-mono leading-relaxed rounded-xl border border-input shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all resize-y bg-background"
+                    className="w-full min-h-[400px] resize-y border border-black bg-background p-4 text-sm font-mono leading-relaxed rounded-none focus-visible:outline-none"
                     value={form.content}
                     onChange={(event) => updateField('content', event.target.value)}
                     placeholder="Define the functional requirements, prompts, and execution logic..."
@@ -516,13 +516,13 @@ export default function SkillsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="shadow-sm border-border/60"
+                    className="rounded-none border-black"
                     onClick={() => setIsSheetOpen(false)}
                     disabled={isSubmitting}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isSubmitting} className="min-w-[140px] gap-2 shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
+                  <Button type="submit" disabled={isSubmitting} className="min-w-[140px] gap-2 rounded-none border border-black">
                     {isSubmitting ? (
                       'Processing...'
                     ) : (
@@ -538,13 +538,13 @@ export default function SkillsPage() {
           </div>
 
           {sheetMode === 'detail' && selectedSkill ? (
-            <SheetFooter className="p-6 md:p-8 border-t bg-muted/10 shrink-0 flex flex-row items-center justify-between gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
-              <Button onClick={openEditSheet} variant="outline" className="shadow-sm gap-2 bg-background border-border/60 flex-1 sm:flex-none">
+            <SheetFooter className="flex shrink-0 flex-row items-center justify-between gap-3 border-t border-black bg-muted/10 p-6 md:p-8">
+              <Button onClick={openEditSheet} variant="outline" className="flex-1 gap-2 rounded-none border-black bg-background sm:flex-none">
                 <Edit3 className="h-4 w-4" /> Edit Skill
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" disabled={isDeleting} className="shadow-sm gap-2 flex-1 sm:flex-none">
+                  <Button variant="destructive" disabled={isDeleting} className="flex-1 gap-2 rounded-none border border-black sm:flex-none">
                     <Trash2 className="h-4 w-4" />
                     {isDeleting ? 'Deleting...' : 'Delete Skill'}
                   </Button>

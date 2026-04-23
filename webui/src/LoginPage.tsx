@@ -19,11 +19,11 @@ export default function LoginPage({ currentUser, onLogin }: LoginPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (currentUser) {
-    return <Navigate to={currentUser.mustChangePassword ? '/workspace/account' : '/workspace/chats'} replace />
+    return <Navigate to={currentUser.mustChangePassword ? '/workspace/account' : '/workspace/projects'} replace />
   }
 
-  const nextPath = (location.state as { from?: string } | null)?.from || '/workspace/chats'
-  const targetPath = nextPath === '/login' ? '/workspace/chats' : nextPath
+  const nextPath = (location.state as { from?: string } | null)?.from || '/workspace/projects'
+  const targetPath = nextPath === '/login' ? '/workspace/projects' : nextPath
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

@@ -8,6 +8,24 @@ export type AuthUser = {
   mustChangePassword: boolean
 }
 
+export interface Project {
+  id: string
+  title: string | null
+  description: string | null
+  userId: string | null
+  status: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectPageResponse {
+  items: Project[]
+  page: number
+  size: number
+  totalItems: number
+  totalPages: number
+}
+
 export interface Workflow {
   id: string;
   name: string;
@@ -271,6 +289,33 @@ function parseSseSegment<T>(segment: string) {
 
 export async function fetchCurrentUser() {
   return request<AuthUser>('/api/v1/auth/me', { method: 'GET' })
+}
+
+export async function listProjects(params?: { page?: number; size?: number; q?: string }): Promise<ProjectPageResponse> {
+  const searchParams = new URLSearchParams()
+  searchParams.set('page', String(params?.page ?? 0))
+  searchParams.set('size', String(params?.size ?? 20))
+  if (params?.q?.trim()) {
+    searchParams.set('q', params.q.trim())
+  }
+  return request<ProjectPageResponse>(`/internal-api/v1/projects?${searchParams.toString()}`, { method: 'GET' })
+}
+
+export async function createProject(project: { title?: string | null; description?: string | null }): Promise<Project> {
+  return request<Project>('/internal-api/v1/projects', {
+    method: 'POST',
+    body: JSON.stringify(project),
+  })
+}
+
+export async function updateProject(
+  id: string,
+  project: { title?: string | null; description?: string | null; status?: string | null },
+): Promise<Project> {
+  return request<Project>(`/internal-api/v1/projects/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(project),
+  })
 }
 
 export async function listWorkflows(): Promise<Workflow[]> {

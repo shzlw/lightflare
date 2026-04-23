@@ -105,7 +105,7 @@ export default function WorkflowsPage() {
             <h4 className="text-lg font-semibold mb-2">No workflows found</h4>
             <p className="text-muted-foreground text-sm max-w-md mb-4">Create a workflow from chat or adjust your search query.</p>
             <Button asChild variant="outline">
-              <NavLink to="/workspace/chats">Go to Chat</NavLink>
+              <NavLink to="/workspace/projects">Go to Projects</NavLink>
             </Button>
           </div>
         ) : (

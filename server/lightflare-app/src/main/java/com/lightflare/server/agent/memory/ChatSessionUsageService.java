@@ -38,13 +38,12 @@ public class ChatSessionUsageService implements AgentUsageRecorder {
 
         int updated = chatSessionRepository.recordTokenUsage(
                 executionId,
-                userId,
                 llmResponse.getTotalTokens(),
                 llmResponse.getInputTokens(),
                 llmResponse.getOutputTokens()
         );
         if (updated != 1) {
-            throw new IllegalStateException("Expected one chat_session row to be upserted but got " + updated);
+            throw new IllegalStateException("Expected one existing chat_session row to be updated but got " + updated);
         }
 
         log.info(

@@ -1,15 +1,14 @@
-package com.lightflare.server.chat;
+package com.lightflare.server.project;
 
+import java.time.OffsetDateTime;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.OffsetDateTime;
-
 @Data
-@Table("chat_session")
-public class ChatSession {
+@Table("project")
+public class Project {
 
     public static final String STATUS_ACTIVE = "active";
     public static final String STATUS_ARCHIVED = "archived";
@@ -18,22 +17,12 @@ public class ChatSession {
     @Id
     private String id;
 
-    @Column("project_id")
-    private String projectId;
-
     private String title;
+
+    private String description;
 
     @Column("user_id")
     private String userId;
-
-    @Column("total_tokens")
-    private Integer totalTokens;
-
-    @Column("total_input_tokens")
-    private Integer totalInputTokens;
-
-    @Column("total_output_tokens")
-    private Integer totalOutputTokens;
 
     private String status;
 

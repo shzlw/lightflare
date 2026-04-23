@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,8 +30,9 @@ public class InternalChatSessionController {
     public ChatSessionPageResponse listChatSessions(@RequestParam(name = "page", defaultValue = "0") int page,
                                                     @RequestParam(name = "size", defaultValue = "20") int size,
                                                     @RequestParam(name = "q", required = false) String q,
+                                                    @RequestParam(name = "projectId", required = false) String projectId,
                                                     HttpServletRequest httpRequest) {
-        return chatSessionService.listChatSessions(page, size, q, httpRequest);
+        return chatSessionService.listChatSessions(page, size, q, projectId, httpRequest);
     }
 
     @PostMapping
@@ -38,6 +40,13 @@ public class InternalChatSessionController {
     public ChatSessionResponse createChatSession(@RequestBody CreateChatSessionRequest request,
                                                  HttpServletRequest httpRequest) {
         return chatSessionService.createChatSession(request, httpRequest);
+    }
+
+    @PatchMapping("/{id}")
+    public ChatSessionResponse updateChatSession(@PathVariable("id") String id,
+                                                 @RequestBody UpdateChatSessionRequest request,
+                                                 HttpServletRequest httpRequest) {
+        return chatSessionService.updateChatSession(id, request, httpRequest);
     }
 
     @GetMapping("/{sessionId}/messages")

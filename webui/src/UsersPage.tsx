@@ -470,21 +470,21 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div className="flex items-center gap-4">
             <h3 className="text-xl font-semibold">User Directory</h3>
-            <span className="bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">{totalItems} total</span>
+            <span className="border border-black bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">{totalItems} total</span>
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">
-            <Button className="w-full md:w-auto shadow-sm hover:shadow-md transition-shadow gap-2" onClick={openCreateSheet}>
+            <Button className="w-full gap-2 rounded-none border border-black md:w-auto" onClick={openCreateSheet}>
               <Plus className="h-4 w-4" /> New user
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted/30 p-2 rounded-lg">
+        <div className="flex flex-col items-center justify-between gap-4 border border-black bg-muted/30 p-2 md:flex-row">
           <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="h-10 pl-10 rounded-md w-full bg-background border-border/60 shadow-sm focus-visible:ring-primary/30"
+              className="h-10 w-full rounded-none border-black bg-background pl-10"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search user directory..."
@@ -545,11 +545,11 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
               size="sm"
               onClick={() => setPage((current) => Math.max(0, current - 1))}
               disabled={page === 0 || isListLoading}
-              className="h-8 w-8 p-0 rounded-md shadow-sm"
+              className="h-8 w-8 rounded-none border-black p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="bg-muted px-3 py-1 rounded-md text-xs font-mono font-bold text-muted-foreground">
+            <div className="border border-black bg-muted px-3 py-1 text-xs font-mono font-bold text-muted-foreground">
               {totalPages === 0 ? 0 : page + 1} / {Math.max(totalPages, 1)}
             </div>
             <Button
@@ -557,7 +557,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
               size="sm"
               onClick={() => setPage((current) => current + 1)}
               disabled={isListLoading || totalPages === 0 || page >= totalPages - 1}
-              className="h-8 w-8 p-0 rounded-md shadow-sm"
+              className="h-8 w-8 rounded-none border-black p-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -568,7 +568,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent
           side="right"
-          className="!w-[90vw] sm:!max-w-xl md:!max-w-2xl lg:!max-w-3xl xl:!max-w-4xl overflow-y-auto border-l border-border/40 shadow-2xl p-0 flex flex-col"
+          className="!w-[90vw] flex flex-col overflow-y-auto border-l border-black p-0 sm:!max-w-xl md:!max-w-2xl lg:!max-w-3xl xl:!max-w-4xl"
         >
           <div className="p-6 md:p-8 shrink-0 border-b bg-background/95 backdrop-blur sticky top-0 z-10 supports-[backdrop-filter]:bg-background/60">
             <SheetHeader>
@@ -596,8 +596,8 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
           <div className="p-6 md:p-8 flex-1">
             {sheetMode === 'detail' && isDetailLoading ? (
               <div className="space-y-6">
-                <Skeleton className="h-20 w-full rounded-xl" />
-                <Skeleton className="h-40 w-full rounded-xl" />
+                <Skeleton className="h-20 w-full rounded-none" />
+                <Skeleton className="h-40 w-full rounded-none" />
               </div>
             ) : null}
 
@@ -605,41 +605,41 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
               selectedUser ? (
                 <div className="space-y-8 animate-in fade-in duration-300">
                   <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Display Name</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedUser.displayName)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Username</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedUser.username)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Email</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedUser.email)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Status</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedUser.status)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Role</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedUser.role)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Password Reset Required</span>
                       <p className="font-mono text-sm break-all text-primary/80">{selectedUser.mustChangePassword ? 'Yes' : 'No'}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Created</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatDate(selectedUser.createdAt)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Updated</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatDate(selectedUser.updatedAt)}</p>
                     </article>
                   </section>
 
-                  <section className="rounded-xl border shadow-sm overflow-hidden flex flex-col bg-card">
+                  <section className="flex flex-col overflow-hidden border border-black bg-card">
                     <div className="bg-muted/40 px-5 py-4 flex items-center justify-between border-b">
                       <span className="text-sm font-bold flex items-center gap-2"><Shield className="h-4 w-4" /> Identity Mappings</span>
                       <Button type="button" variant="outline" size="sm" className="gap-2" onClick={openCreateIdentityForm}>
@@ -650,7 +650,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                       {isIdentitiesLoading ? <p className="text-sm text-muted-foreground">Loading identities...</p> : null}
 
                       {!isIdentitiesLoading && identities.length === 0 ? (
-                        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        <div className="border border-black p-4 text-sm text-muted-foreground">
                           No external identities are linked to this user.
                         </div>
                       ) : null}
@@ -658,7 +658,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                       {identities.length > 0 ? (
                         <div className="space-y-3">
                           {identities.map((identity) => (
-                            <article key={identity.id} className="rounded-lg border p-4 bg-background/80">
+                            <article key={identity.id} className="border border-black bg-background/80 p-4">
                               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-2">
@@ -708,7 +708,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                         </div>
                       ) : null}
 
-                      <form className="space-y-4 rounded-lg border bg-muted/20 p-4" onSubmit={handleIdentitySubmit}>
+                      <form className="space-y-4 border border-black bg-muted/20 p-4" onSubmit={handleIdentitySubmit}>
                         <div className="flex items-center justify-between gap-3">
                           <h4 className="text-sm font-semibold">
                             {editingIdentityId ? 'Edit identity' : 'Add identity'}
@@ -723,7 +723,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                           <div className="space-y-2">
                             <label className="text-sm font-semibold">Provider</label>
                             <Input
-                              className="h-10 rounded-md bg-background"
+                              className="h-10 rounded-none border-black bg-background"
                               value={identityForm.provider}
                               onChange={(event) => updateIdentityField('provider', event.target.value)}
                               placeholder="slack"
@@ -733,7 +733,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                           <div className="space-y-2">
                             <label className="text-sm font-semibold">External User ID</label>
                             <Input
-                              className="h-10 rounded-md bg-background"
+                              className="h-10 rounded-none border-black bg-background"
                               value={identityForm.externalUserId}
                               onChange={(event) => updateIdentityField('externalUserId', event.target.value)}
                               placeholder="U0123456789"
@@ -752,7 +752,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                     </div>
                   </section>
 
-                  <section className="rounded-xl border shadow-sm overflow-hidden flex flex-col bg-card">
+                  <section className="flex flex-col overflow-hidden border border-black bg-card">
                     <div className="bg-muted/40 px-5 py-4 flex items-center justify-between border-b">
                       <span className="text-sm font-bold flex items-center gap-2"><Shield className="h-4 w-4" /> Security Controls</span>
                     </div>
@@ -761,7 +761,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                         <div className="space-y-2">
                           <label className="text-sm font-semibold flex items-center gap-2">Temporary Password</label>
                           <Input
-                            className="h-10 rounded-md bg-background w-full sm:max-w-md"
+                            className="h-10 w-full rounded-none border-black bg-background sm:max-w-md"
                             type="password"
                             value={passwordResetValue}
                             onChange={(event) => setPasswordResetValue(event.target.value)}
@@ -773,7 +773,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                         <label className="flex items-center gap-3 cursor-pointer">
                           <input
                             type="checkbox"
-                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            className="h-4 w-4 border border-black text-primary focus:ring-primary"
                             checked={forcePasswordChange}
                             onChange={(event) => setForcePasswordChange(event.target.checked)}
                           />
@@ -781,7 +781,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                         </label>
 
                         <div className="pt-2">
-                          <Button type="submit" disabled={isResettingPassword || !passwordResetValue.trim()} className="shadow-sm min-w-32 gap-2">
+                          <Button type="submit" disabled={isResettingPassword || !passwordResetValue.trim()} className="min-w-32 gap-2 rounded-none border border-black">
                             {isResettingPassword ? (
                               'Resetting...'
                             ) : (
@@ -796,17 +796,17 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                   </section>
                 </div>
               ) : (
-                <div className="py-12 flex flex-col items-center text-center border-2 border-dashed border-border/60 rounded-xl bg-muted/10">
+                <div className="flex flex-col items-center border border-black bg-muted/10 py-12 text-center">
                   <p className="text-muted-foreground text-sm">Select a user to inspect it.</p>
                 </div>
               )
             ) : (
               <form className="space-y-6 animate-in fade-in duration-300" onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/20 p-5 rounded-xl border border-border/50">
+                <div className="grid grid-cols-1 gap-6 border border-black bg-muted/20 p-5 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label className="text-sm font-semibold flex items-center gap-2">Username</label>
                     <Input
-                      className="h-10 rounded-md bg-background"
+                      className="h-10 rounded-none border-black bg-background"
                       value={form.username}
                       onChange={(event) => updateField('username', event.target.value)}
                       placeholder="operator"
@@ -817,7 +817,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                   <div className="space-y-2">
                     <label className="text-sm font-semibold flex items-center gap-2">Display Name</label>
                     <Input
-                      className="h-10 rounded-md bg-background"
+                      className="h-10 rounded-none border-black bg-background"
                       value={form.displayName}
                       onChange={(event) => updateField('displayName', event.target.value)}
                       placeholder="Operations User"
@@ -827,7 +827,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                   <div className="space-y-2">
                     <label className="text-sm font-semibold flex items-center gap-2">Email</label>
                     <Input
-                      className="h-10 rounded-md bg-background"
+                      className="h-10 rounded-none border-black bg-background"
                       value={form.email}
                       onChange={(event) => updateField('email', event.target.value)}
                       placeholder="user@example.com"
@@ -837,7 +837,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                   <div className="space-y-2">
                     <label className="text-sm font-semibold flex items-center gap-2">Status</label>
                     <Select value={form.status} onValueChange={(value) => updateField('status', value)}>
-                      <SelectTrigger className="h-10 w-full rounded-md bg-background">
+                      <SelectTrigger className="h-10 w-full rounded-none border-black bg-background">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -854,7 +854,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                     <div className="space-y-2">
                       <label className="text-sm font-semibold flex items-center gap-2">Role</label>
                       <Select value={form.role} onValueChange={(value) => updateField('role', value)}>
-                        <SelectTrigger className="h-10 w-full rounded-md bg-background">
+                        <SelectTrigger className="h-10 w-full rounded-none border-black bg-background">
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -873,7 +873,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                   <div className="space-y-2 sm:col-span-2">
                     <label className="text-sm font-semibold flex items-center gap-2">Initial Password</label>
                     <Input
-                      className="h-10 rounded-md bg-background max-w-md"
+                      className="h-10 max-w-md rounded-none border-black bg-background"
                       type="password"
                       value={form.password}
                       onChange={(event) => updateField('password', event.target.value)}
@@ -884,7 +884,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                 ) : null}
 
                 <div className="flex gap-3 pt-6">
-                  <Button type="submit" disabled={isSubmitting} className="min-w-[120px] gap-2 shadow-sm hover:shadow-md transition-shadow">
+                  <Button type="submit" disabled={isSubmitting} className="min-w-[120px] gap-2 rounded-none border border-black">
                     {isSubmitting ? (
                       'Saving...'
                     ) : (
@@ -894,7 +894,7 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
                       </>
                     )}
                   </Button>
-                  <Button type="button" variant="outline" className="gap-2 shadow-sm" onClick={() => setIsSheetOpen(false)} disabled={isSubmitting}>
+                  <Button type="button" variant="outline" className="gap-2 rounded-none border-black" onClick={() => setIsSheetOpen(false)} disabled={isSubmitting}>
                     <X className="h-4 w-4" /> Cancel
                   </Button>
                 </div>
@@ -904,12 +904,12 @@ export default function UsersPage({ currentUser }: { currentUser: AuthUser | nul
 
           {sheetMode === 'detail' && selectedUser ? (
             <div className="p-6 md:p-8 shrink-0 border-t bg-muted/20 flex gap-3">
-              <Button onClick={openEditSheet} className="shadow-sm gap-2">
+              <Button onClick={openEditSheet} className="gap-2 rounded-none border border-black">
                 <Edit3 className="h-4 w-4" /> Edit User
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" disabled={isDeleting} className="shadow-sm gap-2">
+                  <Button variant="destructive" disabled={isDeleting} className="gap-2 rounded-none border border-black">
                     <Trash2 className="h-4 w-4" />
                     {isDeleting ? 'Deleting...' : 'Delete User'}
                   </Button>

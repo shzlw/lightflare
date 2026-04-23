@@ -1,7 +1,6 @@
 package com.lightflare.server.harness.core.execution;
 
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -11,7 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.stereotype.Component;
 
+@Component
 public class PlanGraphValidator {
 
     public PlanDag buildValidatedDag(List<LLMPlanResponse.PlanStep> steps) {

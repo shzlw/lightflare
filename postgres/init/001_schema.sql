@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS document;
 DROP TABLE IF EXISTS memory;
 DROP TABLE IF EXISTS chat_message;
 DROP TABLE IF EXISTS chat_session;
+DROP TABLE IF EXISTS project;
 DROP TABLE IF EXISTS skill;
 DROP TABLE IF EXISTS app_user_identity;
 DROP TABLE IF EXISTS app_user;
@@ -71,9 +72,21 @@ CREATE TABLE chat_message
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+CREATE TABLE project
+(
+    id          TEXT PRIMARY KEY,
+    title       TEXT,
+    description TEXT,
+    user_id     TEXT,
+    status      VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 CREATE TABLE chat_session
 (
     id                  TEXT PRIMARY KEY,
+    project_id          TEXT        NOT NULL REFERENCES project (id),
     title               TEXT,
     user_id             TEXT,
     total_tokens        INT                  DEFAULT 0,
@@ -218,6 +231,12 @@ CREATE INDEX idx_document_chunk_search_vector
 
 CREATE INDEX idx_document_chunk_content_trgm
     ON document_chunk USING GIN (content gin_trgm_ops);
+
+CREATE INDEX idx_project_user_status_updated
+    ON project (user_id, status, updated_at DESC);
+
+CREATE INDEX idx_chat_session_project_status_updated
+    ON chat_session (project_id, status, updated_at DESC);
 
 CREATE UNIQUE INDEX idx_app_user_username_lower
     ON app_user (LOWER(username));

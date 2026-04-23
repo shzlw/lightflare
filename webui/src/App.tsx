@@ -18,11 +18,11 @@ import {
 } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { fetchCurrentUser, type AuthUser } from '@/lib/api'
-import { MessageSquare, Brain, Zap, Wrench, Users, UserCircle, Workflow as WorkflowIcon } from 'lucide-react'
+import { Brain, FolderOpen, Zap, Wrench, Users, UserCircle, Workflow as WorkflowIcon } from 'lucide-react'
 import './App.css'
-import ChatsPage from './ChatsPage'
 import LoginPage from './LoginPage'
 import MemoriesPage from './MemoriesPage'
+import ProjectsPage from './ProjectsPage'
 import SkillsPage from './SkillsPage'
 import ToolCatalogPage from './ToolCatalogPage'
 import UsersPage from './UsersPage'
@@ -30,7 +30,7 @@ import UserInfoPage from './UserInfoPage'
 import WorkflowPage from './WorkflowPage'
 
 const baseMenuItems = [
-  { label: 'Chats', path: '/workspace/chats', icon: MessageSquare },
+  { label: 'Projects', path: '/workspace/projects', icon: FolderOpen },
   { label: 'Memories', path: '/workspace/memories', icon: Brain },
   { label: 'Skills', path: '/workspace/skills', icon: Zap },
   { label: 'Workflows', path: '/workspace/workflows', icon: WorkflowIcon },
@@ -52,10 +52,10 @@ function WorkspaceLayout({ currentUser }: { currentUser: AuthUser | null }) {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <Sidebar collapsible="icon">
+        <Sidebar collapsible="icon" className="border-r border-black">
           <SidebarHeader>
             <div className="flex items-center justify-between px-2 h-12 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-              <NavLink to="/workspace/chats" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden overflow-hidden">
+              <NavLink to="/workspace/projects" className="flex items-center gap-2 group-data-[collapsible=icon]:hidden overflow-hidden">
                 <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <Zap className="size-4" />
                 </div>
@@ -78,6 +78,7 @@ function WorkspaceLayout({ currentUser }: { currentUser: AuthUser | null }) {
                         asChild
                         isActive={location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)}
                         tooltip={item.label}
+                        className="rounded-none border border-black bg-background hover:bg-muted data-active:bg-black data-active:text-white"
                       >
                         <NavLink to={item.path}>
                           <item.icon />
@@ -98,6 +99,7 @@ function WorkspaceLayout({ currentUser }: { currentUser: AuthUser | null }) {
                   asChild
                   isActive={location.pathname === '/workspace/account'}
                   tooltip={accountLabel}
+                  className="rounded-none border border-black bg-background hover:bg-muted data-active:bg-black data-active:text-white"
                 >
                   <NavLink to="/workspace/account">
                     <UserCircle />
@@ -112,7 +114,7 @@ function WorkspaceLayout({ currentUser }: { currentUser: AuthUser | null }) {
         </Sidebar>
 
         <SidebarInset>
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 md:hidden">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-black px-4 md:hidden">
             <SidebarTrigger className="-ml-1" />
           </header>
         <div className="flex-1 min-h-0 flex flex-col">
@@ -140,7 +142,7 @@ function ProtectedWorkspace({ currentUser }: { currentUser: AuthUser | null }) {
 
 function AdminOnlyRoute({ currentUser, children }: { currentUser: AuthUser | null, children: ReactElement }) {
   if (!isAdminLike(currentUser)) {
-    return <Navigate to="/workspace/chats" replace />
+    return <Navigate to="/workspace/projects" replace />
   }
 
   return children
@@ -184,16 +186,20 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/workspace/chats" replace />} />
+      <Route path="/" element={<Navigate to="/workspace/projects" replace />} />
       <Route path="/login" element={<LoginPage currentUser={currentUser} onLogin={setCurrentUser} />} />
       <Route
         path="/workspace"
         element={authDisabled ? <WorkspaceLayout currentUser={currentUser} /> : <ProtectedWorkspace currentUser={currentUser} />}
       >
-        <Route index element={<Navigate to="chats" replace />} />
+        <Route index element={<Navigate to="projects" replace />} />
+        <Route
+          path="projects"
+          element={<ProjectsPage />}
+        />
         <Route
           path="chats"
-          element={<ChatsPage />}
+          element={<Navigate to="/workspace/projects" replace />}
         />
         <Route
           path="skills"
@@ -228,7 +234,7 @@ function App() {
           }
         />
       </Route>
-      <Route path="*" element={<Navigate to="/workspace/chats" replace />} />
+      <Route path="*" element={<Navigate to="/workspace/projects" replace />} />
     </Routes>
   )
 }

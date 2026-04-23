@@ -341,18 +341,18 @@ export default function MemoriesPage() {
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div className="flex items-center gap-4">
             <h3 className="text-xl font-semibold">Memory Hub</h3>
-            <span className="bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">{totalItems} Results</span>
+            <span className="border border-black bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">{totalItems} Results</span>
           </div>
-          <Button onClick={openCreateSheet} className="w-full md:w-auto shadow-sm hover:shadow-md transition-shadow gap-2">
+          <Button onClick={openCreateSheet} className="w-full gap-2 rounded-none border border-black md:w-auto">
             <Plus className="h-4 w-4" /> New Memory
           </Button>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted/30 p-2 rounded-lg">
+        <div className="flex flex-col items-center justify-between gap-4 border border-black bg-muted/30 p-2 md:flex-row">
           <div className="w-full md:w-2/3 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="h-10 pl-10 rounded-md w-full bg-background border-border/60 shadow-sm focus-visible:ring-primary/30"
+              className="h-10 w-full rounded-none border-black bg-background pl-10"
               value={queryDraft}
               onChange={(event) => setQueryDraft(event.target.value)}
               placeholder="Search indexed knowledge..."
@@ -361,7 +361,7 @@ export default function MemoriesPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-10 w-full md:w-auto gap-2 bg-background border-border/60 shadow-sm rounded-md"
+            className="h-10 w-full gap-2 rounded-none border-black bg-background md:w-auto"
             onClick={applySearch}
             disabled={isListLoading && queryDraft.trim() === query}
           >
@@ -379,7 +379,7 @@ export default function MemoriesPage() {
                   setPage(0)
                   setCreatedAtSort((current) => current === 'desc' ? 'asc' : 'desc')
                 }}
-                className="h-9 gap-2 bg-background border-border/60 shadow-sm rounded-md"
+                className="h-9 gap-2 rounded-none border-black bg-background"
                 aria-label={`Sort by created time ${createdAtSort === 'desc' ? 'ascending' : 'descending'}`}
               >
                 {createdAtSort === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
@@ -395,7 +395,7 @@ export default function MemoriesPage() {
                   setPageSize(Number(value))
                 }}
               >
-                <SelectTrigger className="h-9 w-[120px] bg-background border-border/60 shadow-sm focus:ring-2 focus:ring-primary/20">
+                <SelectTrigger className="h-9 w-[120px] rounded-none border-black bg-background">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -412,17 +412,17 @@ export default function MemoriesPage() {
 
         {isListLoading ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-4">
-            <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <div className="h-8 w-8 animate-spin border-4 border-primary/20 border-t-primary"></div>
             <p className="text-muted-foreground text-sm font-medium animate-pulse">Loading memories...</p>
           </div>
         ) : !isListLoading && memories.length === 0 ? (
-          <div className="py-16 flex flex-col items-center justify-center text-center border-2 border-dashed border-border/60 rounded-xl bg-muted/10">
-            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+          <div className="flex flex-col items-center justify-center border border-black bg-muted/10 py-16 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center border border-black bg-muted/50">
               <span className="text-2xl opacity-50">💭</span>
             </div>
             <h4 className="text-lg font-semibold mb-2">No memories found</h4>
             <p className="text-muted-foreground text-sm mb-6 max-w-md">Try adjusting your search query or creating a new memory altogether.</p>
-            <Button variant="outline" onClick={openCreateSheet} className="shadow-sm gap-2">
+            <Button variant="outline" onClick={openCreateSheet} className="gap-2 rounded-none border-black">
               <Plus className="h-4 w-4" /> Create your first memory
             </Button>
           </div>
@@ -478,11 +478,11 @@ export default function MemoriesPage() {
               size="sm"
               onClick={() => setPage((current) => Math.max(0, current - 1))}
               disabled={page === 0 || isListLoading}
-              className="h-8 w-8 p-0 rounded-md shadow-sm"
+              className="h-8 w-8 rounded-none border-black p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="bg-muted px-3 py-1 rounded-md text-xs font-mono font-bold text-muted-foreground">
+            <div className="border border-black bg-muted px-3 py-1 text-xs font-mono font-bold text-muted-foreground">
               {totalPages === 0 ? 0 : page + 1} / {Math.max(totalPages, 1)}
             </div>
             <Button
@@ -490,7 +490,7 @@ export default function MemoriesPage() {
               size="sm"
               onClick={() => setPage((current) => current + 1)}
               disabled={isListLoading || totalPages === 0 || page >= totalPages - 1}
-              className="h-8 w-8 p-0 rounded-md shadow-sm"
+              className="h-8 w-8 rounded-none border-black p-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -501,7 +501,7 @@ export default function MemoriesPage() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent
           side="right"
-          className="!w-[90vw] sm:!max-w-2xl md:!max-w-3xl lg:!max-w-4xl xl:!max-w-5xl overflow-y-auto border-l border-border/40 shadow-2xl p-0 flex flex-col"
+          className="!w-[90vw] flex flex-col overflow-y-auto border-l border-black p-0 sm:!max-w-2xl md:!max-w-3xl lg:!max-w-4xl xl:!max-w-5xl"
         >
           <div className="p-6 md:p-8 shrink-0 border-b bg-background/95 backdrop-blur sticky top-0 z-10 supports-[backdrop-filter]:bg-background/60">
             <SheetHeader>
@@ -522,64 +522,64 @@ export default function MemoriesPage() {
           <div className="p-6 md:p-8 flex-1">
             {sheetMode === 'detail' && isDetailLoading ? (
               <div className="space-y-6">
-                <Skeleton className="h-20 w-full rounded-xl" />
-                <Skeleton className="h-40 w-full rounded-xl" />
+                <Skeleton className="h-20 w-full rounded-none" />
+                <Skeleton className="h-40 w-full rounded-none" />
               </div>
             ) : null}
 
             {sheetMode === 'detail' ? (
               selectedMemory ? (
                 <div className="space-y-8 animate-in fade-in duration-300">
-                  <section className="bg-muted/20 p-4 rounded-xl border border-border/40 inline-flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="bg-background shadow-sm px-3 py-1 text-xs font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500"></span> {selectedMemory.scope}</Badge>
-                    <Badge variant="outline" className="bg-background shadow-sm px-3 py-1 text-xs font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500"></span> {selectedMemory.kind}</Badge>
-                    <Badge variant="outline" className={`shadow-sm px-3 py-1 text-xs font-semibold flex items-center gap-1.5 ${selectedMemory.status === 'active' ? 'bg-green-500/10 text-green-700 border-green-500/20' : 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20'}`}><span className={`w-2 h-2 rounded-full ${selectedMemory.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'}`}></span> {selectedMemory.status}</Badge>
+                  <section className="inline-flex flex-wrap items-center gap-2 border border-black bg-muted/20 p-4">
+                    <Badge variant="outline" className="flex items-center gap-1.5 rounded-none border-black bg-background px-3 py-1 text-xs font-semibold"><span className="h-2 w-2 bg-blue-500"></span> {selectedMemory.scope}</Badge>
+                    <Badge variant="outline" className="flex items-center gap-1.5 rounded-none border-black bg-background px-3 py-1 text-xs font-semibold"><span className="h-2 w-2 bg-purple-500"></span> {selectedMemory.kind}</Badge>
+                    <Badge variant="outline" className={`flex items-center gap-1.5 rounded-none px-3 py-1 text-xs font-semibold ${selectedMemory.status === 'active' ? 'border-black bg-green-500/10 text-green-700' : 'border-black bg-yellow-500/10 text-yellow-700'}`}><span className={`h-2 w-2 ${selectedMemory.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'}`}></span> {selectedMemory.status}</Badge>
                   </section>
 
                   <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-2"><User className="h-3 w-3" />Owner Context</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedMemory.ownerUserId)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-2"><MessageSquare className="h-3 w-3" />Session Link</span>
                       <p className="font-mono text-sm break-all text-primary/80">{formatValue(selectedMemory.sessionId)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Source Origin</span>
                       <p className="text-sm font-medium">{formatValue(selectedMemory.source)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Retention Rules</span>
                       <p className="text-sm font-medium">{formatValue(selectedMemory.retentionPolicy)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Created Vector Time</span>
                       <p className="text-sm font-medium">{formatDate(selectedMemory.createdAt)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Last Sync Time</span>
                       <p className="text-sm font-medium">{formatDate(selectedMemory.updatedAt)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow col-span-1 sm:col-span-2 bg-gradient-to-br from-card to-muted/20">
+                    <article className="col-span-1 border border-black bg-card p-4 sm:col-span-2">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Status Metadata</span>
                       <p className="text-sm font-medium italic">{formatValue(selectedMemory.statusReason)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Blob Size</span>
                       <p className="font-mono text-sm">{formatFileSize(selectedMemory.document?.fileSize ?? null)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow">
+                    <article className="border border-black bg-card p-4">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">MIME Type</span>
                       <p className="font-mono text-sm">{formatValue(selectedMemory.document?.fileContentType ?? null)}</p>
                     </article>
-                    <article className="p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-shadow col-span-1 sm:col-span-2">
+                    <article className="col-span-1 border border-black bg-card p-4 sm:col-span-2">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Physical File URI</span>
-                      <p className="font-mono text-xs break-all text-primary bg-primary/5 p-2 rounded block">{formatValue(selectedMemory.document?.filePath ?? null)}</p>
+                      <p className="block border border-black bg-primary/5 p-2 font-mono text-xs break-all text-primary">{formatValue(selectedMemory.document?.filePath ?? null)}</p>
                     </article>
                   </section>
 
-                  <section className="rounded-xl border shadow-sm overflow-hidden flex flex-col bg-card">
+                  <section className="flex flex-col overflow-hidden border border-black bg-card">
                     <div className="bg-muted/40 px-5 py-4 flex items-center justify-between border-b">
                       <span className="text-sm font-bold flex items-center gap-2"><FileText className="h-4 w-4" /> Embedded Material</span>
                       <span className="text-[10px] font-bold tracking-wider uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-sm">
@@ -594,7 +594,7 @@ export default function MemoriesPage() {
                   </section>
                 </div>
               ) : (
-                <div className="text-muted-foreground text-center py-12 border-2 border-dashed rounded-xl">Select a memory context object to inspect payload details.</div>
+                <div className="border border-black py-12 text-center text-muted-foreground">Select a memory context object to inspect payload details.</div>
               )
             ) : (
               <form className="space-y-6 animate-in fade-in duration-300" onSubmit={handleCreateMemory}>
@@ -662,7 +662,7 @@ export default function MemoriesPage() {
                     </span>
                   </div>
                   <textarea
-                    className="w-full min-h-[220px] p-4 text-sm font-mono leading-relaxed rounded-xl border border-input shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all resize-y bg-background disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full min-h-[220px] resize-y border border-black bg-background p-4 text-sm font-mono leading-relaxed rounded-none focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     value={form.content}
                     onChange={(event) => updateField('content', event.target.value)}
                     disabled={isSubmitting}
@@ -678,7 +678,7 @@ export default function MemoriesPage() {
                       Optional when content is entered
                     </span>
                   </div>
-                  <div className="relative border-2 border-dashed border-border/80 rounded-lg p-6 transition-colors hover:bg-muted/30">
+                  <div className="relative border border-black p-6 hover:bg-muted/30">
                     <input
                       ref={uploadInputRef}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
@@ -700,7 +700,7 @@ export default function MemoriesPage() {
                       </Button>
                     ) : null}
                     <div className="flex flex-col items-center justify-center text-center gap-2 pointer-events-none">
-                      <div className="p-3 bg-background rounded-full shadow-sm mb-1">
+                      <div className="mb-1 border border-black bg-background p-3">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                       </div>
                       <span className="text-sm font-semibold">{uploadFile ? uploadFile.name : "Click or drag file here"}</span>
@@ -710,7 +710,7 @@ export default function MemoriesPage() {
                 </div>
 
                 <div className="pt-6 border-t flex justify-end">
-                  <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto shadow-md hover:shadow-lg transition-transform hover:-translate-y-0.5 gap-2" size="lg">
+                  <Button type="submit" disabled={isSubmitting} className="w-full gap-2 rounded-none border border-black sm:w-auto" size="lg">
                     {isSubmitting ? (
                       'Embedding Memory...'
                     ) : (
@@ -725,10 +725,10 @@ export default function MemoriesPage() {
           </div>
 
           {sheetMode === 'detail' && selectedMemory ? (
-            <SheetFooter className="p-6 border-t bg-muted/10 shrink-0 flex-col sm:flex-row gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+            <SheetFooter className="flex shrink-0 flex-col gap-3 border-t border-black bg-muted/10 p-6 sm:flex-row">
               <Button
                 variant="outline"
-                className="shadow-sm bg-background flex-1 sm:flex-none gap-2"
+                className="flex-1 gap-2 rounded-none border-black bg-background sm:flex-none"
                 onClick={() => void handleArchive()}
                 disabled={isArchiving || selectedMemory.status !== 'active'}
               >
@@ -737,7 +737,7 @@ export default function MemoriesPage() {
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="shadow-sm flex-1 sm:flex-none gap-2" disabled={isDeleting}>
+                  <Button variant="destructive" className="flex-1 gap-2 rounded-none border border-black sm:flex-none" disabled={isDeleting}>
                     <Trash2 className="h-4 w-4" />
                     {isDeleting ? 'Erasing Artifact...' : 'Delete Memory Blob'}
                   </Button>
