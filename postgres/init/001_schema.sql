@@ -4,6 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 DROP TABLE IF EXISTS document_chunk;
 DROP TABLE IF EXISTS document;
 DROP TABLE IF EXISTS memory;
+DROP TABLE IF EXISTS chat_artifact;
 DROP TABLE IF EXISTS chat_message;
 DROP TABLE IF EXISTS chat_session;
 DROP TABLE IF EXISTS project;
@@ -73,6 +74,22 @@ CREATE TABLE chat_message
     source     VARCHAR(20) NOT NULL,
     content    TEXT        NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE chat_artifact
+(
+    id            TEXT PRIMARY KEY,
+    session_id    TEXT        NOT NULL,
+    message_id    TEXT,
+    artifact_type VARCHAR(50) NOT NULL,
+    title         TEXT,
+    content       TEXT        NOT NULL,
+    metadata      TEXT,
+    pinned        BOOLEAN     NOT NULL DEFAULT FALSE,
+    display_order INTEGER     NOT NULL DEFAULT 0,
+    created_by    TEXT,
+    created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 CREATE TABLE project
@@ -265,6 +282,12 @@ CREATE INDEX idx_project_user_status_updated
 
 CREATE INDEX idx_chat_session_project_status_updated
     ON chat_session (project_id, status, updated_at DESC);
+
+CREATE INDEX idx_chat_artifact_session_order
+    ON chat_artifact (session_id, pinned DESC, display_order ASC, updated_at DESC);
+
+CREATE INDEX idx_chat_artifact_message_id
+    ON chat_artifact (message_id);
 
 CREATE UNIQUE INDEX idx_app_user_username_lower
     ON app_user (LOWER(username));

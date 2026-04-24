@@ -11,6 +11,7 @@ import com.lightflare.server.chat.events.ChatStreamMessageCompleteEvent;
 import com.lightflare.server.chat.events.ChatStreamMessageErrorEvent;
 import com.lightflare.server.chat.events.ChatStreamMessageStartEvent;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -35,6 +36,8 @@ public class ChatResponseStreamService {
     private final AgentService agentService;
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatArtifactService chatArtifactService;
+    private final ChatArtifactExtractor chatArtifactExtractor;
     private final AuthService authService;
 
     @Qualifier("chatStreamExecutor")
@@ -73,6 +76,7 @@ public class ChatResponseStreamService {
             String assistantResponse = agentService.process(chatRequest, listener);
 
             ChatMessage assistantMessage = findLatestAssistantMessage(chatSession.getId(), assistantResponse);
+            List<String> artifactIds = createArtifacts(chatSession, assistantMessage, assistantResponse);
             sendEvent(emitter, ChatStreamEvent.builder()
                     .type(ChatStreamEventType.MESSAGE_COMPLETE)
                     .executionId(chatSession.getId())
@@ -82,6 +86,7 @@ public class ChatResponseStreamService {
                             .source(ASSISTANT_SOURCE)
                             .content(assistantMessage != null ? assistantMessage.getContent() : assistantResponse)
                             .createdAt(assistantMessage != null ? assistantMessage.getCreatedAt() : null)
+                            .artifactIds(artifactIds)
                             .build())
                     .build());
             emitter.complete();
@@ -142,6 +147,28 @@ public class ChatResponseStreamService {
                         .filter(message -> ASSISTANT_SOURCE.equals(message.getSource()))
                         .findFirst()
                         .orElse(null));
+    }
+
+    private List<String> createArtifacts(ChatSession chatSession, ChatMessage assistantMessage, String assistantResponse) {
+        String content = assistantMessage != null ? assistantMessage.getContent() : assistantResponse;
+        ChatArtifactExtractor.ChatArtifactCandidate candidate = chatArtifactExtractor.extract(content);
+        if (candidate == null) {
+            return List.of();
+        }
+        ChatArtifactResponse artifact = chatArtifactService.createArtifact(
+                chatSession.getId(),
+                assistantMessage != null ? assistantMessage.getId() : null,
+                candidate.artifactType(),
+                candidate.title(),
+                candidate.content(),
+                candidate.metadata(),
+                false,
+                0,
+                chatSession.getUserId()
+        );
+        List<String> artifactIds = new ArrayList<>();
+        artifactIds.add(artifact.id());
+        return artifactIds;
     }
 
     private void sendEvent(SseEmitter emitter, ChatStreamEvent payload) throws IOException {

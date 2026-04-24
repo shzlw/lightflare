@@ -55,7 +55,7 @@ export default function LoginPage({ currentUser, onLogin }: LoginPageProps) {
                 Identity
               </label>
               <Input
-                className="h-12 rounded-xl bg-background border-border/60 focus-visible:ring-primary/20 transition-all px-4"
+                className="h-12 rounded-none border-black bg-background px-4 transition-all"
                 value={loginValue}
                 onChange={(event) => setLoginValue(event.target.value)}
                 placeholder="Username or email"
@@ -69,7 +69,7 @@ export default function LoginPage({ currentUser, onLogin }: LoginPageProps) {
                 Password
               </label>
               <Input
-                className="h-12 rounded-xl bg-background border-border/60 focus-visible:ring-primary/20 transition-all px-4"
+                className="h-12 rounded-none border-black bg-background px-4 transition-all"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -81,7 +81,7 @@ export default function LoginPage({ currentUser, onLogin }: LoginPageProps) {
           </div>
 
           {error ? (
-            <div className="mt-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium animate-in fade-in slide-in-from-top-1">
+            <div className="mt-4 border border-destructive p-3 text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">
               {error}
             </div>
           ) : null}
@@ -89,10 +89,10 @@ export default function LoginPage({ currentUser, onLogin }: LoginPageProps) {
           <Button 
             type="submit" 
             disabled={isSubmitting} 
-            className="h-12 w-full mt-8 rounded-xl gap-2 font-bold shadow-xl shadow-primary/10 transition-all hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0 text-sm"
+            className="mt-8 h-12 w-full gap-2 rounded-none border border-black text-sm font-bold"
           >
             {isSubmitting ? (
-              <div className="w-4 h-4 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin" />
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/20 border-t-primary-foreground" />
             ) : (
               'Sign in'
             )}

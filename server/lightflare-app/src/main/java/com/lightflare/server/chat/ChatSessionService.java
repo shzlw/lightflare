@@ -30,6 +30,7 @@ public class ChatSessionService {
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatArtifactRepository chatArtifactRepository;
     private final ProjectRepository projectRepository;
     private final AuthService authService;
 
@@ -152,6 +153,7 @@ public class ChatSessionService {
         if (!ChatSession.STATUS_ACTIVE.equals(session.getStatus())) {
             throw new IllegalStateException("Only active chat sessions can be deleted");
         }
+        chatArtifactRepository.deleteBySessionId(id);
         int deleted = chatSessionRepository.deleteChatSessionById(id);
         if (deleted != 1) {
             throw new IllegalStateException("Expected one chat_session row to be deleted but got " + deleted);

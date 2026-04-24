@@ -78,6 +78,7 @@ type ChatStreamMessageCompleteEvent = {
   source: string
   content: string
   createdAt: string | null
+  artifactIds?: string[] | null
 }
 
 type ChatStreamMessageErrorEvent = {
@@ -135,6 +136,28 @@ type StreamTimelineEntry =
   | { id: string; type: 'message_complete'; messageId: string }
   | { id: string; type: 'message_error'; message: string }
 
+type ChatArtifact = {
+  id: string
+  sessionId: string
+  messageId: string | null
+  artifactType: string
+  title: string | null
+  content: string
+  metadata: string | null
+  pinned: boolean
+  displayOrder: number
+  createdBy: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+type ArtifactDraft = {
+  artifactType: string
+  title: string
+  content: string
+  metadata: string
+}
+
 function formatProjectTitle(project: Project) {
   return project.title?.trim() ? project.title : 'Untitled project'
 }
@@ -159,6 +182,68 @@ function deriveSessionTitle(content: string) {
     return 'New chat'
   }
   return compact.length > 36 ? `${compact.slice(0, 36)}...` : compact
+}
+
+function extractFencedBlock(content: string, language: string) {
+  const match = content.match(new RegExp(`\\\`\\\`\\\`${language}\\s*([\\s\\S]*?)\\\`\\\`\\\``, 'i'))
+  return match?.[1]?.trim() ?? null
+}
+
+function inferArtifactDraft(content: string): ArtifactDraft {
+  const normalized = content.trim()
+  const jsonBlock = extractFencedBlock(normalized, 'json')
+  if (jsonBlock) {
+    return {
+      artifactType: 'json',
+      title: 'Generated JSON',
+      content: jsonBlock,
+      metadata: '{"renderer":"json"}',
+    }
+  }
+
+  const diffBlock = extractFencedBlock(normalized, 'diff')
+  if (diffBlock) {
+    return {
+      artifactType: 'diff',
+      title: 'Generated Diff',
+      content: diffBlock,
+      metadata: '{"renderer":"diff"}',
+    }
+  }
+
+  if ((normalized.startsWith('{') && normalized.endsWith('}')) || (normalized.startsWith('[') && normalized.endsWith(']'))) {
+    return {
+      artifactType: 'json',
+      title: 'Generated JSON',
+      content: normalized,
+      metadata: '{"renderer":"json"}',
+    }
+  }
+
+  if (normalized.includes('```diff') || normalized.includes('@@') || /\n[+-][^\n]+/.test(normalized)) {
+    return {
+      artifactType: 'diff',
+      title: 'Generated Diff',
+      content: diffBlock ?? normalized,
+      metadata: '{"renderer":"diff"}',
+    }
+  }
+
+  if (/^\s*(\d+\.|- |\* )/m.test(normalized) && normalized.split('\n').filter((line) => /^\s*(\d+\.|- |\* )/.test(line)).length >= 3) {
+    return {
+      artifactType: 'plan',
+      title: 'Generated Plan',
+      content: normalized,
+      metadata: '{"renderer":"plan"}',
+    }
+  }
+
+  return {
+    artifactType: 'text',
+    title: 'Generated Artifact',
+    content: normalized,
+    metadata: '{"renderer":"text"}',
+  }
 }
 
 function formatMessageTime(value: string) {
@@ -207,6 +292,12 @@ export default function ProjectsPage() {
   const [streamEvents, setStreamEvents] = useState<StreamTimelineEntry[]>([])
   const [retainedStreamEvents, setRetainedStreamEvents] = useState<StreamTimelineEntry[]>([])
   const [isLastRunTraceExpanded, setIsLastRunTraceExpanded] = useState(false)
+  const [artifacts, setArtifacts] = useState<ChatArtifact[]>([])
+  const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null)
+  const [pendingArtifactIds, setPendingArtifactIds] = useState<string[]>([])
+  const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false)
+  const [isUpdatingArtifactId, setIsUpdatingArtifactId] = useState<string | null>(null)
+  const [isCreatingArtifactForMessageId, setIsCreatingArtifactForMessageId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isQuickStartingChat, setIsQuickStartingChat] = useState(false)
@@ -235,9 +326,12 @@ export default function ProjectsPage() {
       setMessages([])
       setNextBefore(null)
       setHasMoreMessages(false)
+      setArtifacts([])
+      setActiveArtifactId(null)
       return
     }
     void loadLatestMessages(selectedSessionId)
+    void loadArtifacts(selectedSessionId)
   }, [selectedSessionId])
 
   useEffect(() => {
@@ -249,6 +343,17 @@ export default function ProjectsPage() {
       setShouldFocusComposer(false)
     })
   }, [selectedSessionId, shouldFocusComposer])
+
+  useEffect(() => {
+    if (pendingArtifactIds.length === 0 || artifacts.length === 0) {
+      return
+    }
+    const nextArtifact = artifacts.find((artifact) => pendingArtifactIds.includes(artifact.id))
+    if (nextArtifact) {
+      setActiveArtifactId(nextArtifact.id)
+      setPendingArtifactIds([])
+    }
+  }, [artifacts, pendingArtifactIds])
 
   async function loadProjects() {
     setIsLoadingProjects(true)
@@ -316,6 +421,28 @@ export default function ProjectsPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to load chat messages.')
     } finally {
       setIsLoadingMessages(false)
+    }
+  }
+
+  async function loadArtifacts(sessionId: string) {
+    setIsLoadingArtifacts(true)
+    try {
+      const data = await request<ChatArtifact[]>(`/internal-api/v1/chat-sessions/${sessionId}/artifacts`, {
+        method: 'GET',
+      })
+      setArtifacts(data)
+      setActiveArtifactId((current) => {
+        if (current && data.some((artifact) => artifact.id === current)) {
+          return current
+        }
+        return data.find((artifact) => artifact.pinned)?.id ?? data[0]?.id ?? null
+      })
+    } catch (error) {
+      setArtifacts([])
+      setActiveArtifactId(null)
+      toast.error(error instanceof Error ? error.message : 'Failed to load artifacts.')
+    } finally {
+      setIsLoadingArtifacts(false)
     }
   }
 
@@ -395,6 +522,9 @@ export default function ProjectsPage() {
     setStreamEvents([])
     setRetainedStreamEvents([])
     setIsLastRunTraceExpanded(false)
+    setArtifacts([])
+    setActiveArtifactId(null)
+    setPendingArtifactIds([])
     setDraft('')
   }
 
@@ -558,6 +688,7 @@ export default function ProjectsPage() {
 
           if (data.type === 'MESSAGE_COMPLETE') {
             const payload = data.payload as ChatStreamMessageCompleteEvent
+            const artifactIds = payload.artifactIds?.filter(Boolean) ?? []
             setStreamEvents((current) => {
               const nextEvents = [
                 ...current,
@@ -576,6 +707,7 @@ export default function ProjectsPage() {
                 createdAt: payload.createdAt ?? new Date().toISOString(),
               },
             ])
+            setPendingArtifactIds(artifactIds)
             requestAnimationFrame(() => {
               scrollToBottom(messageListRef.current)
             })
@@ -598,13 +730,72 @@ export default function ProjectsPage() {
 
       await loadProjectSessions(selectedProjectId)
       await loadLatestMessages(activeSessionId)
+      await loadArtifacts(activeSessionId)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to send message.')
       if (sessionId) {
         await loadLatestMessages(sessionId)
+        await loadArtifacts(sessionId)
       }
     } finally {
       setIsSending(false)
+    }
+  }
+
+  function handleOpenArtifact(artifactId: string) {
+    setActiveArtifactId(artifactId)
+  }
+
+  async function handlePinArtifact(artifactId: string) {
+    const artifact = artifacts.find((item) => item.id === artifactId)
+    if (!artifact) {
+      return
+    }
+    setIsUpdatingArtifactId(artifactId)
+    try {
+      const updated = await request<ChatArtifact>(`/internal-api/v1/chat-artifacts/${artifactId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ pinned: true }),
+      })
+      setArtifacts((current) => current.map((item) => (item.id === artifactId ? updated : item)))
+      setActiveArtifactId(updated.id)
+      toast.success('Pinned to view.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to pin artifact.')
+    } finally {
+      setIsUpdatingArtifactId(null)
+    }
+  }
+
+  async function handleCreateArtifact(message: ChatMessage) {
+    if (!selectedSessionId) {
+      return
+    }
+    const draftArtifact = inferArtifactDraft(message.content)
+    setIsCreatingArtifactForMessageId(message.id)
+    try {
+      const created = await request<ChatArtifact>(`/internal-api/v1/chat-sessions/${selectedSessionId}/artifacts`, {
+        method: 'POST',
+        body: JSON.stringify({
+          messageId: message.id,
+          artifactType: draftArtifact.artifactType,
+          title: draftArtifact.title,
+          content: draftArtifact.content,
+          metadata: draftArtifact.metadata,
+          pinned: false,
+          displayOrder: 0,
+        }),
+      })
+      setArtifacts((current) => {
+        const next = [created, ...current]
+        return next.sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
+      })
+      setActiveArtifactId(created.id)
+      toast.success('Artifact created.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create artifact.')
+    } finally {
+      setIsCreatingArtifactForMessageId(null)
     }
   }
 
@@ -684,6 +875,37 @@ export default function ProjectsPage() {
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null
   const visibleStreamEvents = isSending ? streamEvents : retainedStreamEvents
+  const activeArtifact = artifacts.find((artifact) => artifact.id === activeArtifactId) ?? null
+  const viewMode: 'artifact' | 'application-builder' = activeArtifact ? 'artifact' : 'application-builder'
+  const artifactsByMessageId = useMemo(() => {
+    const map = new Map<string, ChatArtifact[]>()
+    for (const artifact of artifacts) {
+      if (!artifact.messageId) {
+        continue
+      }
+      const current = map.get(artifact.messageId) ?? []
+      current.push(artifact)
+      map.set(artifact.messageId, current)
+    }
+    return map
+  }, [artifacts])
+  const latestAssistantMessageId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index]?.source !== 'user') {
+        return messages[index]?.id ?? null
+      }
+    }
+    return null
+  }, [messages])
+  const latestFinalResponseContent = useMemo(() => {
+    for (let index = visibleStreamEvents.length - 1; index >= 0; index -= 1) {
+      const entry = visibleStreamEvents[index]
+      if (entry?.type === 'final_response' && entry.content?.trim()) {
+        return entry.content.trim()
+      }
+    }
+    return null
+  }, [visibleStreamEvents])
 
   useEffect(() => {
     if (!selectedProject || isEditProjectOpen) {
@@ -758,7 +980,7 @@ export default function ProjectsPage() {
               <span className="text-[11px] font-bold text-green-600/80 uppercase tracking-tight">Step Result: {entry.status}</span>
             </div>
             {entry.terminalResponse ? (
-              <div className="rounded-none border border-black bg-zinc-950 p-2 overflow-hidden shadow-sm">
+              <div className="rounded-none border border-black bg-background p-2 overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
                   <Terminal className="h-3 w-3 text-zinc-400" />
                   <span className="text-[10px] font-mono text-zinc-400 font-bold uppercase tracking-wider">Output</span>
@@ -798,6 +1020,38 @@ export default function ProjectsPage() {
           </div>
         )
     }
+  }
+
+  function renderTraceSection(forceExpanded: boolean) {
+    if (visibleStreamEvents.length === 0) {
+      return null
+    }
+
+    const expanded = forceExpanded || isLastRunTraceExpanded
+
+    return (
+      <div className="mb-3 space-y-2">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between border border-black px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider"
+          onClick={() => {
+            if (!forceExpanded) {
+              setIsLastRunTraceExpanded((current) => !current)
+            }
+          }}
+        >
+          <span>{isSending ? 'Run Trace' : 'Last Run Trace'}</span>
+          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+        {expanded ? (
+          <div className="space-y-2 max-h-56 overflow-y-auto">
+            {visibleStreamEvents.map((entry) => (
+              <div key={entry.id}>{renderStreamEvent(entry)}</div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    )
   }
 
   async function handleUpdateProject() {
@@ -940,7 +1194,7 @@ export default function ProjectsPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-0 flex flex-col">
+            <div className="h-full min-h-0 flex flex-col overflow-hidden">
               <div className="border-b border-black px-4 py-2.5">
                 <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
                   <div className="min-w-0 flex items-center gap-2">
@@ -1021,14 +1275,14 @@ export default function ProjectsPage() {
                         <div
                           key={session.id}
                           className={`flex items-center border border-black rounded-none mr-2 ${
-                            session.id === selectedSessionId ? 'bg-black text-white shadow-[inset_0_0_0_2px_#000]' : 'bg-background'
+                            session.id === selectedSessionId ? 'bg-primary/10 text-primary shadow-[inset_0_0_0_2px_#7DFDFE]' : 'bg-background'
                           }`}
                         >
                           <button
                             type="button"
                             onClick={() => setSelectedSessionId(session.id)}
                             className={`min-w-[140px] flex-none px-3 py-2 text-left text-sm ${
-                              session.id === selectedSessionId ? 'bg-black text-white' : 'bg-background text-foreground'
+                              session.id === selectedSessionId ? 'bg-primary/10 text-primary' : 'bg-background text-foreground'
                             }`}
                           >
                             {formatSessionTitle(session, index)}
@@ -1046,7 +1300,7 @@ export default function ProjectsPage() {
                                 variant="ghost"
                                 size="icon"
                                 className={`h-8 w-8 shrink-0 rounded-none ${
-                                  session.id === selectedSessionId ? 'text-white' : ''
+                                  session.id === selectedSessionId ? 'text-primary' : ''
                                 }`}
                                 onClick={(event) => {
                                   event.stopPropagation()
@@ -1126,38 +1380,9 @@ export default function ProjectsPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,0.78fr)_minmax(420px,1.22fr)]">
-                      <div className="min-h-0 flex flex-col border-r border-black max-w-[760px]">
-                        {visibleStreamEvents.length > 0 ? (
-                          <div className="border-b border-black bg-background/40 px-4 py-3">
-                            {isSending ? (
-                              <div className="space-y-2 max-h-56 overflow-y-auto">
-                                {visibleStreamEvents.map((entry) => (
-                                  <div key={entry.id}>{renderStreamEvent(entry)}</div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center justify-between border border-black px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider"
-                                  onClick={() => setIsLastRunTraceExpanded((current) => !current)}
-                                >
-                                  <span>Last Run Trace</span>
-                                  {isLastRunTraceExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                </button>
-                                {isLastRunTraceExpanded ? (
-                                  <div className="space-y-2 max-h-56 overflow-y-auto">
-                                    {visibleStreamEvents.map((entry) => (
-                                      <div key={entry.id}>{renderStreamEvent(entry)}</div>
-                                    ))}
-                                  </div>
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
-                        ) : null}
-                        <div ref={messageListRef} className="flex-1 min-h-0 overflow-y-auto p-4 md:p-5 space-y-3 bg-muted/10">
+                    <div className="flex-1 min-h-0 grid grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,0.78fr)_minmax(420px,1.22fr)]">
+                      <div className="min-h-0 flex h-full flex-col overflow-hidden border-r border-black max-w-[760px]">
+                        <div ref={messageListRef} className="h-0 flex-1 overflow-y-auto p-4 md:p-5 space-y-3 bg-muted/10">
                           {hasMoreMessages ? (
                             <div className="flex justify-center">
                               <Button
@@ -1180,25 +1405,93 @@ export default function ProjectsPage() {
                               No messages yet. Send the first prompt in this chat tab.
                             </div>
                           ) : (
-                            messages.map((message) => {
-                              const isUser = message.source === 'user'
-                              return (
-                                <div key={message.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                                  <div
-                                    className={`max-w-[85%] rounded-none px-4 py-3 shadow-sm ${
-                                      isUser
-                                        ? 'bg-primary text-primary-foreground border border-black'
-                                        : 'bg-background border border-black text-foreground'
-                                    }`}
-                                  >
-                                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
-                                    <div className={`mt-2 text-[10px] ${isUser ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                      {formatMessageTime(message.createdAt)}
+                            <>
+                              {messages.map((message) => {
+                                const isUser = message.source === 'user'
+                                const attachTrace = !isUser
+                                  && message.id === latestAssistantMessageId
+                                  && !isSending
+                                  && visibleStreamEvents.length > 0
+                                const messageArtifacts = artifactsByMessageId.get(message.id) ?? []
+                                return (
+                                  <div key={message.id} className="flex justify-start">
+                                    <div
+                                      className={`w-full rounded-none border border-black px-4 py-3 shadow-sm ${
+                                        isUser
+                                          ? 'bg-primary/10 text-foreground'
+                                          : 'bg-background text-foreground'
+                                      }`}
+                                    >
+                                      <div className="mb-3 flex items-center justify-between gap-3 border-b border-black pb-2">
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                                          {isUser ? 'User' : 'LLM'}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {formatMessageTime(message.createdAt)}
+                                        </span>
+                                      </div>
+                                      {attachTrace ? renderTraceSection(false) : null}
+                                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                                      {!isUser ? (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                          {messageArtifacts.length === 0 ? (
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              className="rounded-none border-black"
+                                              disabled={isCreatingArtifactForMessageId === message.id}
+                                              onClick={() => void handleCreateArtifact(message)}
+                                            >
+                                              {isCreatingArtifactForMessageId === message.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Create Artifact'}
+                                            </Button>
+                                          ) : null}
+                                          {messageArtifacts.map((artifact) => (
+                                            <div key={artifact.id} className="flex items-center gap-2">
+                                              <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="rounded-none border-black"
+                                                onClick={() => void handleOpenArtifact(artifact.id)}
+                                              >
+                                                Open in View
+                                              </Button>
+                                              {!artifact.pinned ? (
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="rounded-none border-black"
+                                                  disabled={isUpdatingArtifactId === artifact.id}
+                                                  onClick={() => void handlePinArtifact(artifact.id)}
+                                                >
+                                                  {isUpdatingArtifactId === artifact.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Pin'}
+                                                </Button>
+                                              ) : null}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : null}
                                     </div>
                                   </div>
+                                )
+                              })}
+                              {isSending && visibleStreamEvents.length > 0 ? (
+                                <div className="flex justify-start">
+                                  <div className="w-full rounded-none border border-black bg-background px-4 py-3 text-foreground shadow-sm">
+                                    <div className="mb-3 flex items-center justify-between gap-3 border-b border-black pb-2">
+                                      <span className="text-[10px] font-bold uppercase tracking-[0.2em]">LLM</span>
+                                      <span className="text-[10px] text-muted-foreground">Streaming</span>
+                                    </div>
+                                    {renderTraceSection(true)}
+                                    {latestFinalResponseContent ? (
+                                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{latestFinalResponseContent}</div>
+                                    ) : null}
+                                  </div>
                                 </div>
-                              )
-                            })
+                              ) : null}
+                            </>
                           )}
                         </div>
 
@@ -1226,37 +1519,58 @@ export default function ProjectsPage() {
                         </div>
                       </div>
 
-                      <aside className="min-h-0 flex flex-col bg-background">
+                      <aside className="min-h-0 flex h-full flex-col overflow-hidden bg-background">
                         <div className="border-b border-black px-4 py-3">
-                          <div className="text-sm font-semibold uppercase tracking-wider">App Builder Workspace</div>
-                          <div className="text-xs text-muted-foreground mt-1">Use this pane to shape outputs, forms, and app surfaces for the selected chat tab.</div>
-                        </div>
-                        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-                          <div className="border border-black p-3">
-                            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Project</div>
-                            <div className="mt-2 text-sm font-semibold">{formatProjectTitle(selectedProject)}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">{selectedProject.description?.trim() || 'No description yet.'}</div>
-                          </div>
-                          <div className="border border-black p-3">
-                            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Chat Tab</div>
-                            <div className="mt-2 text-sm font-semibold">
-                              {sessions.find((session) => session.id === selectedSessionId)
-                                ? formatSessionTitle(
-                                    sessions.find((session) => session.id === selectedSessionId)!,
-                                    sessions.findIndex((session) => session.id === selectedSessionId),
-                                  )
-                                : 'No tab selected'}
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-semibold uppercase tracking-wider">View Panel</div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={viewMode === 'artifact' ? 'default' : 'outline'} className="rounded-none border border-black">
+                                Artifact
+                              </Badge>
+                              <Badge variant={viewMode === 'application-builder' ? 'default' : 'outline'} className="rounded-none border border-black">
+                                Application Builder
+                              </Badge>
                             </div>
-                            <div className="mt-1 text-xs text-muted-foreground">Build app artifacts tied to this conversation branch.</div>
                           </div>
-                          <div className="border border-black p-4 min-h-[280px] flex items-center justify-center text-center">
-                            <div>
-                              <div className="text-sm font-semibold">Workspace Canvas</div>
-                              <div className="mt-2 text-xs text-muted-foreground max-w-[220px]">
-                                Reserve this panel for generated UI, forms, reports, or app previews produced from the selected chat tab.
+                        </div>
+                        <div className="h-0 flex-1 overflow-y-auto p-4">
+                          {isLoadingArtifacts ? (
+                            <div className="border border-black p-4 min-h-[280px] flex items-center justify-center text-center">
+                              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                            </div>
+                          ) : activeArtifact ? (
+                            <div className="border border-black min-h-[280px] flex flex-col">
+                              <div className="border-b border-black px-4 py-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-semibold">{activeArtifact.title?.trim() || 'Untitled artifact'}</div>
+                                    <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                                      {activeArtifact.artifactType}
+                                      {activeArtifact.pinned ? ' · pinned' : ''}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex-1 overflow-auto p-4">
+                                {activeArtifact.artifactType === 'json' ? (
+                                  <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed">{activeArtifact.content}</pre>
+                                ) : activeArtifact.artifactType === 'diff' ? (
+                                  <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed">{activeArtifact.content}</pre>
+                                ) : activeArtifact.artifactType === 'plan' ? (
+                                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{activeArtifact.content}</div>
+                                ) : (
+                                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{activeArtifact.content}</div>
+                                )}
                               </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="border border-black min-h-[280px] h-full p-4 flex flex-col">
+                              <div className="border-b border-black pb-3">
+                                <div className="text-sm font-semibold">Application Builder</div>
+                              </div>
+                              <div className="flex-1 min-h-0" />
+                            </div>
+                          )}
                         </div>
                       </aside>
                     </div>
