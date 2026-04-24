@@ -49,8 +49,8 @@ public class AgentTaskService {
         return execute(request);
     }
 
-    public String executeWorkflowStep(String executionId, String referenceId, String userId, String task) {
-        String resolvedExecutionId = StringUtils.hasText(executionId) ? executionId : "workflow-" + UUID.randomUUID();
+    public String executeStepTask(String executionId, String referenceId, String userId, String task) {
+        String resolvedExecutionId = StringUtils.hasText(executionId) ? executionId : "step-" + UUID.randomUUID();
         ToolExecutionRouter toolExecutionRouter = ToolExecutionRouters.normal(toolService);
         AgentTaskRequest request = new AgentTaskRequest(
                 resolvedExecutionId,

@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { fetchCurrentUser, type AuthUser } from '@/lib/api'
-import { Brain, FolderOpen, Zap, Wrench, Users, UserCircle, Workflow as WorkflowIcon } from 'lucide-react'
+import { Brain, FolderOpen, Zap, Wrench, Users, UserCircle } from 'lucide-react'
 import './App.css'
 import LoginPage from './LoginPage'
 import MemoriesPage from './MemoriesPage'
@@ -27,13 +27,11 @@ import SkillsPage from './SkillsPage'
 import ToolCatalogPage from './ToolCatalogPage'
 import UsersPage from './UsersPage'
 import UserInfoPage from './UserInfoPage'
-import WorkflowPage from './WorkflowPage'
 
 const baseMenuItems = [
   { label: 'Projects', path: '/workspace/projects', icon: FolderOpen },
   { label: 'Memories', path: '/workspace/memories', icon: Brain },
   { label: 'Skills', path: '/workspace/skills', icon: Zap },
-  { label: 'Workflows', path: '/workspace/workflows', icon: WorkflowIcon },
   { label: 'Tool Catalog', path: '/workspace/tool-catalog', icon: Wrench },
 ]
 
@@ -216,14 +214,6 @@ function App() {
         <Route
           path="tool-catalog"
           element={<ToolCatalogPage />}
-        />
-        <Route
-          path="workflows"
-          element={<WorkflowPage />}
-        />
-        <Route
-          path="workflows/:id"
-          element={<WorkflowPage />}
         />
         <Route
           path="users"

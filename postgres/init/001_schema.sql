@@ -11,10 +11,13 @@ DROP TABLE IF EXISTS skill;
 DROP TABLE IF EXISTS app_user_identity;
 DROP TABLE IF EXISTS app_user;
 DROP TABLE IF EXISTS auth_session;
-DROP TABLE IF EXISTS workflow_step_run;
-DROP TABLE IF EXISTS workflow_run;
-DROP TABLE IF EXISTS workflow_trigger;
-DROP TABLE IF EXISTS workflow;
+DROP TABLE IF EXISTS application_step_run;
+DROP TABLE IF EXISTS application_run;
+DROP TABLE IF EXISTS application_edge;
+DROP TABLE IF EXISTS application_trigger;
+DROP TABLE IF EXISTS application_step;
+DROP TABLE IF EXISTS application_version;
+DROP TABLE IF EXISTS application;
 DROP TABLE IF EXISTS execution_checkpoint;
 
 CREATE TABLE memory
@@ -148,60 +151,85 @@ CREATE TABLE auth_session
     updated_at         TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE workflow
+CREATE TABLE application
 (
-    id                TEXT PRIMARY KEY,
-    name              VARCHAR(255) NOT NULL,
-    description       TEXT,
-    status            VARCHAR(32)  NOT NULL DEFAULT 'draft',
-    definition_json   TEXT         NOT NULL,
-    created_by        VARCHAR(128),
-    created_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    id                     TEXT PRIMARY KEY,
+    name                   TEXT        NOT NULL,
+    description            TEXT,
+    created_by             TEXT,
+    published_version_id   TEXT,
+    created_at             TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at             TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE workflow_trigger
+CREATE TABLE application_version
 (
-    id              TEXT PRIMARY KEY,
-    workflow_id     TEXT        NOT NULL,
-    trigger_type    VARCHAR(32) NOT NULL,
-    name            VARCHAR(255),
-    enabled         BOOLEAN     NOT NULL DEFAULT TRUE,
-    config_json     TEXT        NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    id               TEXT PRIMARY KEY,
+    application_id   TEXT        NOT NULL,
+    version_number   INTEGER     NOT NULL,
+    status           VARCHAR(20) NOT NULL DEFAULT 'draft',
+    created_at       TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+
+    UNIQUE (application_id, version_number)
 );
 
-CREATE TABLE workflow_run
+CREATE TABLE application_step
 (
-    id              TEXT PRIMARY KEY,
-    workflow_id     TEXT        NOT NULL,
-    trigger_id      TEXT,
-    trigger_type    VARCHAR(32) NOT NULL,
-    status          VARCHAR(32) NOT NULL,
-    input_json      TEXT        NOT NULL,
-    output_json     TEXT,
-    error_message   TEXT,
-    started_by      VARCHAR(128),
-    source_id       TEXT,
-    started_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    completed_at    TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    id                     TEXT PRIMARY KEY,
+    application_version_id TEXT        NOT NULL,
+    step_key               TEXT        NOT NULL,
+    name                   TEXT        NOT NULL,
+    step_type              VARCHAR(50) NOT NULL,
+    config_json            TEXT        NOT NULL DEFAULT '{}',
+
+    UNIQUE (application_version_id, step_key)
 );
 
-CREATE TABLE workflow_step_run
+CREATE TABLE application_trigger
 (
-    id              TEXT PRIMARY KEY,
-    workflow_run_id TEXT        NOT NULL,
-    step_id         TEXT        NOT NULL,
-    step_name       VARCHAR(255),
-    step_type       VARCHAR(32) NOT NULL,
-    status          VARCHAR(32) NOT NULL,
-    input_json      TEXT        NOT NULL,
-    output_json     TEXT,
-    error_message   TEXT,
-    started_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    completed_at    TIMESTAMPTZ
+    id                     TEXT PRIMARY KEY,
+    application_version_id TEXT        NOT NULL,
+    trigger_type           VARCHAR(50) NOT NULL,
+    start_step_id          TEXT        NOT NULL,
+    config_json            TEXT        NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE application_edge
+(
+    id                     TEXT PRIMARY KEY,
+    application_version_id TEXT        NOT NULL,
+    from_step_id           TEXT        NOT NULL,
+    to_step_id             TEXT        NOT NULL,
+    condition_type         VARCHAR(50) NOT NULL DEFAULT 'always', -- 'always', 'if', 'else', 'success', 'failure'
+    condition_json         TEXT        NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE application_run
+(
+    id                     TEXT PRIMARY KEY,
+    application_id         TEXT        NOT NULL,
+    application_version_id TEXT        NOT NULL,
+    trigger_id             TEXT,
+    status                 VARCHAR(20) NOT NULL DEFAULT 'running',
+    input_json             TEXT        NOT NULL DEFAULT '{}',
+    output_json            TEXT        NOT NULL DEFAULT '{}',
+    error_message          TEXT,
+    started_by             TEXT,
+    started_at             TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    completed_at           TIMESTAMPTZ
+);
+
+CREATE TABLE application_step_run
+(
+    id                 TEXT PRIMARY KEY,
+    application_run_id TEXT        NOT NULL,
+    step_id            TEXT        NOT NULL,
+    status             VARCHAR(20) NOT NULL DEFAULT 'pending',
+    input_json         TEXT        NOT NULL DEFAULT '{}',
+    output_json        TEXT        NOT NULL DEFAULT '{}',
+    error_message      TEXT,
+    started_at         TIMESTAMPTZ,
+    completed_at       TIMESTAMPTZ
 );
 
 CREATE TABLE execution_checkpoint
@@ -247,3 +275,24 @@ CREATE UNIQUE INDEX idx_app_user_email_lower
 
 CREATE UNIQUE INDEX idx_app_user_identity_provider_external_lower
     ON app_user_identity (LOWER(provider), LOWER(external_user_id));
+
+CREATE INDEX idx_application_created_at
+    ON application (created_at DESC);
+
+CREATE INDEX idx_application_version_application_version_number
+    ON application_version (application_id, version_number DESC);
+
+CREATE INDEX idx_application_step_version
+    ON application_step (application_version_id);
+
+CREATE INDEX idx_application_trigger_version
+    ON application_trigger (application_version_id);
+
+CREATE INDEX idx_application_edge_version
+    ON application_edge (application_version_id);
+
+CREATE INDEX idx_application_run_application_started
+    ON application_run (application_id, started_at DESC);
+
+CREATE INDEX idx_application_step_run_run
+    ON application_step_run (application_run_id);
