@@ -82,6 +82,33 @@ Treat execution log entries as evidence. Do not invent facts, tool results, sour
 - Match the user's requested format when they gave one. Otherwise, prefer concise prose with bullets only when they improve readability.
 - Mention failures or uncertainty only when they materially change the answer or next step for the user.
 - Before returning, verify the response directly answers `$task` and every factual claim is supported by `$executionLog` or completed plan outcomes.
+- If the user asks for a chart, graph, or visualization, put the human-readable explanation in `response` and put the machine-readable chart payload in `artifacts`.
+- Each artifact item must use this shape:
+  ```json
+  {
+    "artifactType": "chart",
+    "title": "string",
+    "content": {
+      "chartType": "pie | line | bar",
+      "title": "string",
+      "xAxis": ["label1", "label2"],
+      "series": [
+        { "name": "Series name", "data": [1, 2, 3] }
+      ],
+      "data": [
+        { "name": "Slice A", "value": 10 },
+        { "name": "Slice B", "value": 20 }
+      ]
+    },
+    "metadata": {
+      "renderer": "echart"
+    }
+  }
+  ```
+- For `bar` and `line`, include `xAxis` plus `series`.
+- For `pie`, include `data` and omit `xAxis` unless it is genuinely useful.
+- Do not return full ECharts option objects unless the task explicitly asks for raw ECharts config.
+- Use `artifacts: []` when no artifact is needed.
 
 </rules>
 
@@ -89,6 +116,14 @@ Treat execution log entries as evidence. Do not invent facts, tool results, sour
 Return valid JSON only:
 
 {
-  "response": "string"
+  "response": "string",
+  "artifacts": [
+    {
+      "artifactType": "string",
+      "title": "string",
+      "content": {},
+      "metadata": {}
+    }
+  ]
 }
 </output>

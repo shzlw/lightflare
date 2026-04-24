@@ -63,6 +63,10 @@ public class AgentExecutionService {
     }
 
     public String resume(ResumeExecutionRequest request) {
+        return resumeWithMetadata(request).response();
+    }
+
+    public ResponseResolutionResult resumeWithMetadata(ResumeExecutionRequest request) {
         HarnessExecutionListener executionListener = request.listener() != null ? request.listener() : HarnessExecutionListener.NOOP;
         ExecutionCheckpoint storedCheckpoint = checkpointService.findResumableCheckpoint(
                         request.executionType(),
@@ -138,6 +142,13 @@ public class AgentExecutionService {
                           ConversationContext conversationContext,
                           SkillContext skillContext,
                           HarnessExecutionListener listener) {
+        return executeWithMetadata(runContext, conversationContext, skillContext, listener).response();
+    }
+
+    public ResponseResolutionResult executeWithMetadata(HarnessRunContext runContext,
+                                                        ConversationContext conversationContext,
+                                                        SkillContext skillContext,
+                                                        HarnessExecutionListener listener) {
         HarnessExecutionListener executionListener = listener != null ? listener : HarnessExecutionListener.NOOP;
         log.info("[{}][START] sessionId={}, taskLength={}, toolCount={}, memoryCount={}, skillCount={}",
                 LOG_STAGE,
@@ -179,7 +190,7 @@ public class AgentExecutionService {
                     LOG_STAGE,
                     runContext.executionId());
             executionListener.onFinalResponse(runContext.executionId(), planResponse.getResponse());
-            return planResponse.getResponse();
+            return new ResponseResolutionResult(planResponse.getResponse(), false);
         }
 
         if (CollectionUtils.isEmpty(planResponse.getSteps())) {
@@ -188,7 +199,7 @@ public class AgentExecutionService {
                     runContext.executionId());
             String response = "No execution steps were produced.";
             executionListener.onFinalResponse(runContext.executionId(), response);
-            return response;
+            return new ResponseResolutionResult(response, false);
         }
 
         initializePlanStatuses(planResponse.getSteps());
@@ -245,7 +256,7 @@ public class AgentExecutionService {
         return continueExecution(state);
     }
 
-    private String continueExecution(AgentExecutionState state) {
+    private ResponseResolutionResult continueExecution(AgentExecutionState state) {
         updateCheckpoint(state);
         try {
         while (state.getPlanDag().hasPendingSteps()) {
@@ -274,7 +285,7 @@ public class AgentExecutionService {
                         if (StringUtils.hasText(replanResult.directResponse())) {
                             state.getListener().onFinalResponse(state.getRunContext().executionId(), replanResult.directResponse());
                             checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), replanResult.directResponse());
-                            return replanResult.directResponse();
+                            return new ResponseResolutionResult(replanResult.directResponse(), false);
                         }
                         state.setPlanDag(replanResult.planDag());
                         state.setSelectedSkill(replanResult.selectedSkill() != null ? replanResult.selectedSkill() : state.getSelectedSkill());
@@ -304,14 +315,14 @@ public class AgentExecutionService {
                                 state.getCheckpoint(),
                                 buildPendingUserInputRequest(null, blockedDecision.getUserMessage())
                         );
-                        return blockedDecision.getUserMessage();
+                        return new ResponseResolutionResult(blockedDecision.getUserMessage(), true);
                     }
                 }
                 if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.CANNOT_COMPLETE
                         && StringUtils.hasText(blockedDecision.getUserMessage())) {
                     state.getListener().onFinalResponse(state.getRunContext().executionId(), blockedDecision.getUserMessage());
                     checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), blockedDecision.getUserMessage());
-                    return blockedDecision.getUserMessage();
+                    return new ResponseResolutionResult(blockedDecision.getUserMessage(), false);
                 }
                 if (blockedDecision.getOutcome() == PlanContinuationDecision.Outcome.FINAL_RESPONSE) {
                     state.setPlanDag(markRemainingPendingAsSkipped(
@@ -335,7 +346,7 @@ public class AgentExecutionService {
                         : applicationResult.pendingUserInputRequest().getQuestion();
                 state.getListener().onFinalResponse(state.getRunContext().executionId(), waitingResponse);
                 checkpointService.saveWaitingForUser(state.getCheckpointId(), state.getCheckpoint(), applicationResult.pendingUserInputRequest());
-                return waitingResponse;
+                return new ResponseResolutionResult(waitingResponse, true);
             }
             if (StringUtils.hasText(userMessage)) {
                 log.info("[{}][EARLY_RETURN] sessionId={}, responseLength={}",
@@ -343,7 +354,7 @@ public class AgentExecutionService {
                         state.getRunContext().executionId(), userMessage.length());
                 state.getListener().onFinalResponse(state.getRunContext().executionId(), userMessage);
                 checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), userMessage);
-                return userMessage;
+                return new ResponseResolutionResult(userMessage, false);
             }
 
             List<String> lastWaveExecutionLog = results.stream()
@@ -380,7 +391,7 @@ public class AgentExecutionService {
                     if (StringUtils.hasText(replanResult.directResponse())) {
                         state.getListener().onFinalResponse(state.getRunContext().executionId(), replanResult.directResponse());
                         checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), replanResult.directResponse());
-                        return replanResult.directResponse();
+                        return new ResponseResolutionResult(replanResult.directResponse(), false);
                     }
                     state.setPlanDag(replanResult.planDag());
                     state.setSelectedSkill(replanResult.selectedSkill() != null ? replanResult.selectedSkill() : state.getSelectedSkill());
@@ -402,7 +413,7 @@ public class AgentExecutionService {
                                 state.getCheckpoint(),
                                 buildPendingUserInputRequest(null, decision.getUserMessage())
                         );
-                        return decision.getUserMessage();
+                        return new ResponseResolutionResult(decision.getUserMessage(), true);
                     }
                     state.setPlanDag(markRemainingPendingAsSkipped(
                             state.getPlanDag(),
@@ -415,7 +426,7 @@ public class AgentExecutionService {
                     if (StringUtils.hasText(decision.getUserMessage())) {
                         state.getListener().onFinalResponse(state.getRunContext().executionId(), decision.getUserMessage());
                         checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), decision.getUserMessage());
-                        return decision.getUserMessage();
+                        return new ResponseResolutionResult(decision.getUserMessage(), false);
                     }
                     state.setPlanDag(markRemainingPendingAsSkipped(
                             state.getPlanDag(),
@@ -439,13 +450,13 @@ public class AgentExecutionService {
                     state.getCheckpoint(),
                     buildPendingUserInputRequest(null, finalResponse)
             );
-            return finalResponse;
+            return resolvedResponse;
         }
         checkpointService.saveCompleted(state.getCheckpointId(), state.getCheckpoint(), finalResponse);
         log.info("[{}][COMPLETE] sessionId={}, finalResponseLength={}",
                 LOG_STAGE,
                 state.getRunContext().executionId(), finalResponse.length());
-        return finalResponse;
+        return resolvedResponse;
         } catch (RuntimeException exception) {
             checkpointService.saveFailed(state.getCheckpointId(), state.getCheckpoint(), exception.getMessage());
             throw exception;

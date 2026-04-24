@@ -2,6 +2,8 @@ package com.lightflare.server.chat;
 
 import com.lightflare.server.agent.AgentService;
 import com.lightflare.server.harness.core.event.HarnessExecutionListener;
+import com.lightflare.server.harness.core.execution.GeneratedArtifact;
+import com.lightflare.server.harness.core.execution.ResponseResolutionResult;
 import com.lightflare.server.auth.AppRoles;
 import com.lightflare.server.auth.AuthService;
 import com.lightflare.server.auth.UserContext;
@@ -73,10 +75,11 @@ public class ChatResponseStreamService {
                             .build())
                     .build());
 
-            String assistantResponse = agentService.process(chatRequest, listener);
+            ResponseResolutionResult result = agentService.processWithMetadata(chatRequest, listener);
+            String assistantResponse = result.response();
 
             ChatMessage assistantMessage = findLatestAssistantMessage(chatSession.getId(), assistantResponse);
-            List<String> artifactIds = createArtifacts(chatSession, assistantMessage, assistantResponse);
+            List<String> artifactIds = createArtifacts(chatSession, assistantMessage, assistantResponse, result.artifacts());
             sendEvent(emitter, ChatStreamEvent.builder()
                     .type(ChatStreamEventType.MESSAGE_COMPLETE)
                     .executionId(chatSession.getId())
@@ -149,25 +152,43 @@ public class ChatResponseStreamService {
                         .orElse(null));
     }
 
-    private List<String> createArtifacts(ChatSession chatSession, ChatMessage assistantMessage, String assistantResponse) {
-        String content = assistantMessage != null ? assistantMessage.getContent() : assistantResponse;
-        ChatArtifactExtractor.ChatArtifactCandidate candidate = chatArtifactExtractor.extract(content);
-        if (candidate == null) {
-            return List.of();
+    private List<String> createArtifacts(ChatSession chatSession,
+                                         ChatMessage assistantMessage,
+                                         String assistantResponse,
+                                         List<GeneratedArtifact> generatedArtifacts) {
+        List<GeneratedArtifact> artifactsToPersist = generatedArtifacts == null ? List.of() : generatedArtifacts;
+        if (artifactsToPersist.isEmpty()) {
+            String content = assistantMessage != null ? assistantMessage.getContent() : assistantResponse;
+            ChatArtifactExtractor.ChatArtifactCandidate candidate = chatArtifactExtractor.extract(content);
+            if (candidate == null) {
+                return List.of();
+            }
+            artifactsToPersist = List.of(new GeneratedArtifact(
+                    candidate.artifactType(),
+                    candidate.title(),
+                    candidate.content(),
+                    candidate.metadata()
+            ));
         }
-        ChatArtifactResponse artifact = chatArtifactService.createArtifact(
-                chatSession.getId(),
-                assistantMessage != null ? assistantMessage.getId() : null,
-                candidate.artifactType(),
-                candidate.title(),
-                candidate.content(),
-                candidate.metadata(),
-                false,
-                0,
-                chatSession.getUserId()
-        );
+
         List<String> artifactIds = new ArrayList<>();
-        artifactIds.add(artifact.id());
+        for (GeneratedArtifact artifact : artifactsToPersist) {
+            if (artifact == null || !StringUtils.hasText(artifact.artifactType()) || !StringUtils.hasText(artifact.content())) {
+                continue;
+            }
+            ChatArtifactResponse created = chatArtifactService.createArtifact(
+                    chatSession.getId(),
+                    assistantMessage != null ? assistantMessage.getId() : null,
+                    artifact.artifactType(),
+                    artifact.title(),
+                    artifact.content(),
+                    artifact.metadata(),
+                    false,
+                    0,
+                    chatSession.getUserId()
+            );
+            artifactIds.add(created.id());
+        }
         return artifactIds;
     }
 

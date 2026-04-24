@@ -2,6 +2,7 @@ package com.lightflare.server.agent.excecution;
 
 import com.lightflare.server.agent.plan.AgentPlanner;
 import com.lightflare.server.config.AgentProperties;
+import com.lightflare.server.harness.core.execution.GeneratedArtifact;
 import com.lightflare.server.harness.core.execution.ResponseResolution;
 import com.lightflare.server.harness.core.execution.ResponseResolutionResult;
 import com.lightflare.server.harness.core.run.HarnessRunContext;
@@ -32,7 +33,7 @@ public class ResponseResolver {
     public ResponseResolutionResult resolveWithMetadata(HarnessRunContext runContext,
                                                 List<LLMPlanResponse.PlanStep> steps,
                                                 List<String> executionLog) {
-        String candidateResponse = agentPlanner.composeResponse(
+        ResponseResolutionResult candidateResult = agentPlanner.composeResponse(
                 runContext.executionId(),
                 runContext.executionType(),
                 runContext.userId(),
@@ -42,9 +43,11 @@ public class ResponseResolver {
                 null,
                 null
         );
+        String candidateResponse = candidateResult != null ? candidateResult.response() : null;
         if (!StringUtils.hasText(candidateResponse)) {
             return new ResponseResolutionResult(buildStatusFallback(runContext, steps), false);
         }
+        List<GeneratedArtifact> candidateArtifacts = candidateResult != null ? candidateResult.artifacts() : List.of();
 
         int maxResolutionRounds = Math.max(0, agentProperties.getMaxResponseResolutionRounds());
         for (int resolutionRound = 0; resolutionRound <= maxResolutionRounds; resolutionRound++) {
@@ -73,19 +76,19 @@ public class ResponseResolver {
 
             switch (resolution.getOutcome()) {
                 case ACCEPT -> {
-                    return new ResponseResolutionResult(candidateResponse, false);
+                    return new ResponseResolutionResult(candidateResponse, false, candidateArtifacts);
                 }
                 case ASK_FOR_MORE_INFO -> {
                     if (StringUtils.hasText(resolution.getUserMessage())) {
                         return new ResponseResolutionResult(resolution.getUserMessage(), true);
                     }
-                    return new ResponseResolutionResult(candidateResponse, false);
+                    return new ResponseResolutionResult(candidateResponse, false, candidateArtifacts);
                 }
                 case CANNOT_COMPLETE -> {
                     if (StringUtils.hasText(resolution.getUserMessage())) {
                         return new ResponseResolutionResult(resolution.getUserMessage(), false);
                     }
-                    return new ResponseResolutionResult(candidateResponse, false);
+                    return new ResponseResolutionResult(candidateResponse, false, candidateArtifacts);
                 }
                 case REFINE_RESPONSE -> {
                     if (resolutionRound >= maxResolutionRounds) {
@@ -99,7 +102,7 @@ public class ResponseResolver {
                         return new ResponseResolutionResult(candidateResponse, false);
                     }
 
-                    String refinedResponse = agentPlanner.composeResponse(
+                    ResponseResolutionResult refinedResult = agentPlanner.composeResponse(
                             runContext.executionId(),
                             runContext.executionType(),
                             runContext.userId(),
@@ -109,6 +112,7 @@ public class ResponseResolver {
                             candidateResponse,
                             resolution.getFeedback()
                     );
+                    String refinedResponse = refinedResult != null ? refinedResult.response() : null;
                     if (!StringUtils.hasText(refinedResponse)) {
                         log.warn("[{}][REFINEMENT_EMPTY] sessionId={}, resolutionRound={}",
                                 LOG_STAGE,
@@ -117,11 +121,12 @@ public class ResponseResolver {
                         return new ResponseResolutionResult(candidateResponse, false);
                     }
                     candidateResponse = refinedResponse;
+                    candidateArtifacts = refinedResult != null ? refinedResult.artifacts() : List.of();
                 }
             }
         }
 
-        return new ResponseResolutionResult(candidateResponse, false);
+        return new ResponseResolutionResult(candidateResponse, false, candidateArtifacts);
     }
 
     private String buildStatusFallback(HarnessRunContext runContext, List<LLMPlanResponse.PlanStep> steps) {

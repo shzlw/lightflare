@@ -2,6 +2,7 @@ package com.lightflare.server.agent;
 
 import com.lightflare.server.agent.excecution.AgentExecutionService;
 import com.lightflare.server.agent.excecution.ResumeExecutionRequest;
+import com.lightflare.server.harness.core.execution.ResponseResolutionResult;
 import com.lightflare.server.harness.core.run.HarnessRunContext;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,10 @@ public class AgentRunnerService {
     }
 
     public String resume(AgentTaskRequest request) {
+        return resumeWithMetadata(request).response();
+    }
+
+    public ResponseResolutionResult resumeWithMetadata(AgentTaskRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         log.info("[{}][RESUME] executionId={}, executionType={}, referenceType={}, referenceId={}",
                 LOG_STAGE,
@@ -43,7 +48,7 @@ public class AgentRunnerService {
                 request.executionType(),
                 request.referenceType(),
                 request.referenceId());
-        return agentExecutionService.resume(new ResumeExecutionRequest(
+        return agentExecutionService.resumeWithMetadata(new ResumeExecutionRequest(
                 request.executionType(),
                 request.referenceType(),
                 request.referenceId(),
@@ -56,6 +61,10 @@ public class AgentRunnerService {
     }
 
     public String execute(AgentTaskRequest request) {
+        return executeWithMetadata(request).response();
+    }
+
+    public ResponseResolutionResult executeWithMetadata(AgentTaskRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         log.info("[{}][START] executionId={}, executionType={}, referenceType={}, referenceId={}, userId={}, toolCount={}",
                 LOG_STAGE,
@@ -66,7 +75,7 @@ public class AgentRunnerService {
                 request.userId(),
                 request.tools().size());
 
-        String response = agentExecutionService.execute(
+        ResponseResolutionResult response = agentExecutionService.executeWithMetadata(
                 new HarnessRunContext(
                         request.executionId(),
                         request.executionType(),
@@ -84,7 +93,7 @@ public class AgentRunnerService {
         log.info("[{}][COMPLETE] executionId={}, responseLength={}",
                 LOG_STAGE,
                 request.executionId(),
-                response != null ? response.length() : 0);
+                response != null && response.response() != null ? response.response().length() : 0);
         return response;
     }
 }

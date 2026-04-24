@@ -7,6 +7,7 @@ import com.lightflare.server.agent.skill.SkillSelectionService;
 import com.lightflare.server.agent.tool.InternalToolService;
 import com.lightflare.server.agent.tool.ToolExecutionRouters;
 import com.lightflare.server.agent.tool.ToolService;
+import com.lightflare.server.harness.core.execution.ResponseResolutionResult;
 import com.lightflare.server.harness.core.event.HarnessExecutionListener;
 import com.lightflare.server.harness.core.run.HarnessRunContext;
 import com.lightflare.server.harness.core.tool.ToolExecutionRouter;
@@ -32,10 +33,18 @@ public class AgentService {
     private final AgentRunnerService agentRunnerService;
 
     public String process(CreateChatRequest request) {
-        return process(request, HarnessExecutionListener.NOOP);
+        return processWithMetadata(request, HarnessExecutionListener.NOOP).response();
     }
 
     public String process(CreateChatRequest request, HarnessExecutionListener listener) {
+        return processWithMetadata(request, listener).response();
+    }
+
+    public ResponseResolutionResult processWithMetadata(CreateChatRequest request) {
+        return processWithMetadata(request, HarnessExecutionListener.NOOP);
+    }
+
+    public ResponseResolutionResult processWithMetadata(CreateChatRequest request, HarnessExecutionListener listener) {
         Objects.requireNonNull(request, "request must not be null");
         log.info("[{}][START] sessionId={}, userId={}", LOG_STAGE, request.getSessionId(), request.getUserId());
         ToolExecutionRouter toolExecutionRouter = ToolExecutionRouters.combined(toolService, internalToolService);
@@ -68,7 +77,7 @@ public class AgentService {
             log.info("[{}][RESUME_WAITING] sessionId={} has a waiting execution checkpoint", LOG_STAGE, runContext.executionId());
             ConversationContext conversationContext = conversationContextService.prepare(runContext);
             SkillContext skillContext = skillSelectionService.buildSkillContext(conversationContext.currentMemory());
-            String response = agentRunnerService.resume(new AgentTaskRequest(
+            ResponseResolutionResult response = agentRunnerService.resumeWithMetadata(new AgentTaskRequest(
                     runContext.executionId(),
                     runContext.executionType(),
                     runContext.referenceType(),
@@ -81,20 +90,20 @@ public class AgentService {
                     skillContext,
                     listener
             ));
-            conversationContextService.persistAssistantResponse(runContext, response);
+            conversationContextService.persistAssistantResponse(runContext, response.response());
             log.info("[{}][COMPLETE] sessionId={}, responseLength={}",
                     LOG_STAGE,
-                    runContext.executionId(), response != null ? response.length() : 0);
+                    runContext.executionId(), response != null && response.response() != null ? response.response().length() : 0);
             return response;
         }
 
         if (agentRunnerService.hasResumableCheckpoint(taskRequest)) {
             log.info("[{}][RESUME] sessionId={} has a running execution checkpoint", LOG_STAGE, runContext.executionId());
-            String response = agentRunnerService.resume(taskRequest);
-            conversationContextService.persistAssistantResponse(runContext, response);
+            ResponseResolutionResult response = agentRunnerService.resumeWithMetadata(taskRequest);
+            conversationContextService.persistAssistantResponse(runContext, response.response());
             log.info("[{}][COMPLETE] sessionId={}, responseLength={}",
                     LOG_STAGE,
-                    runContext.executionId(), response != null ? response.length() : 0);
+                    runContext.executionId(), response != null && response.response() != null ? response.response().length() : 0);
             return response;
         }
 
@@ -107,7 +116,7 @@ public class AgentService {
                 LOG_STAGE,
                 skillContext.availableSkills().size(), runContext.executionId());
 
-        String response = agentRunnerService.execute(new AgentTaskRequest(
+        ResponseResolutionResult response = agentRunnerService.executeWithMetadata(new AgentTaskRequest(
                 runContext.executionId(),
                 runContext.executionType(),
                 runContext.referenceType(),
@@ -120,10 +129,10 @@ public class AgentService {
                 skillContext,
                 listener
         ));
-        conversationContextService.persistAssistantResponse(runContext, response);
+        conversationContextService.persistAssistantResponse(runContext, response.response());
         log.info("[{}][COMPLETE] sessionId={}, responseLength={}",
                 LOG_STAGE,
-                runContext.executionId(), response != null ? response.length() : 0);
+                runContext.executionId(), response != null && response.response() != null ? response.response().length() : 0);
         return response;
     }
 

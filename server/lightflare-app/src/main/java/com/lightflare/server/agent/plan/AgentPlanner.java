@@ -2,9 +2,12 @@ package com.lightflare.server.agent.plan;
 
 import com.lightflare.server.harness.core.execution.PlanContinuationDecision;
 import com.lightflare.server.harness.core.execution.ResponseResolution;
+import com.lightflare.server.harness.core.execution.GeneratedArtifact;
 import com.lightflare.server.agent.excecution.StepExecutionContext;
 import com.lightflare.server.agent.prompts.*;
+import com.lightflare.server.harness.core.execution.ResponseResolutionResult;
 import com.lightflare.server.agent.usage.AgentUsageRecorder;
+import com.lightflare.server.llmproviders.core.LLMArtifactPayload;
 import com.lightflare.server.llmproviders.core.LLMFinalResponse;
 import com.lightflare.server.llmproviders.core.LLMPlanResponse;
 import com.lightflare.server.llmproviders.core.LLMProvider;
@@ -18,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -183,14 +187,14 @@ public class AgentPlanner {
         return replanResponse;
     }
 
-    public String composeResponse(String executionId,
-                                  String executionType,
-                                  String userId,
-                                  String task,
-                                  List<LLMPlanResponse.PlanStep> steps,
-                                  List<String> executionLog,
-                                  String candidateResponse,
-                                  String evaluationFeedback) {
+    public ResponseResolutionResult composeResponse(String executionId,
+                                                    String executionType,
+                                                    String userId,
+                                                    String task,
+                                                    List<LLMPlanResponse.PlanStep> steps,
+                                                    List<String> executionLog,
+                                                    String candidateResponse,
+                                                    String evaluationFeedback) {
         log.info("[{}][RESPONSE_REQUEST] executionId={}, stepCount={}, executionLogSize={}",
                 LOG_STAGE,
                 executionId,
@@ -213,11 +217,35 @@ public class AgentPlanner {
                     LOG_STAGE,
                     executionId,
                     finalResponse != null && finalResponse.getResponse() != null);
-            return finalResponse != null ? finalResponse.getResponse() : null;
+            if (finalResponse == null || !StringUtils.hasText(finalResponse.getResponse())) {
+                return null;
+            }
+            return new ResponseResolutionResult(
+                    finalResponse.getResponse(),
+                    false,
+                    toGeneratedArtifacts(finalResponse.getArtifacts())
+            );
         } catch (RuntimeException e) {
             log.warn("[{}][RESPONSE_FAIL] executionId={}", LOG_STAGE, executionId, e);
             return null;
         }
+    }
+
+    private List<GeneratedArtifact> toGeneratedArtifacts(List<LLMArtifactPayload> artifacts) {
+        if (artifacts == null || artifacts.isEmpty()) {
+            return List.of();
+        }
+        return artifacts.stream()
+                .filter(artifact -> artifact != null && StringUtils.hasText(artifact.getArtifactType()) && artifact.getContent() != null)
+                .map(artifact -> new GeneratedArtifact(
+                        artifact.getArtifactType().trim().toLowerCase(),
+                        StringUtils.hasText(artifact.getTitle()) ? artifact.getTitle().trim() : null,
+                        artifact.getContent() instanceof String text ? text : JsonUtils.toJson(artifact.getContent()),
+                        artifact.getMetadata() == null
+                                ? null
+                                : artifact.getMetadata() instanceof String text ? text : JsonUtils.toJson(artifact.getMetadata())
+                ))
+                .toList();
     }
 
     public ResponseResolution reviewResponse(String executionId,

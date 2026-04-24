@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import ChartRenderer from '@/components/ChartRenderer'
 import { Input } from '@/components/ui/input'
 import {
   Item,
@@ -189,8 +190,42 @@ function extractFencedBlock(content: string, language: string) {
   return match?.[1]?.trim() ?? null
 }
 
+function stripArtifactBlocks(content: string) {
+  return content.replace(/```artifact\s*[\s\S]*?```/gi, '').trim()
+}
+
+function parseArtifactBlock(content: string): ArtifactDraft | null {
+  const artifactBlock = extractFencedBlock(content, 'artifact')
+  if (!artifactBlock) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(artifactBlock) as {
+      artifactType?: string
+      title?: string
+      content?: unknown
+      metadata?: unknown
+    }
+    if (!parsed.artifactType || parsed.content === undefined || parsed.content === null) {
+      return null
+    }
+    return {
+      artifactType: parsed.artifactType,
+      title: parsed.title?.trim() || 'Generated Artifact',
+      content: typeof parsed.content === 'string' ? parsed.content : JSON.stringify(parsed.content),
+      metadata: parsed.metadata === undefined ? '' : typeof parsed.metadata === 'string' ? parsed.metadata : JSON.stringify(parsed.metadata),
+    }
+  } catch {
+    return null
+  }
+}
+
 function inferArtifactDraft(content: string): ArtifactDraft {
   const normalized = content.trim()
+  const structuredArtifact = parseArtifactBlock(normalized)
+  if (structuredArtifact) {
+    return structuredArtifact
+  }
   const jsonBlock = extractFencedBlock(normalized, 'json')
   if (jsonBlock) {
     return {
@@ -901,7 +936,8 @@ export default function ProjectsPage() {
     for (let index = visibleStreamEvents.length - 1; index >= 0; index -= 1) {
       const entry = visibleStreamEvents[index]
       if (entry?.type === 'final_response' && entry.content?.trim()) {
-        return entry.content.trim()
+        const cleaned = stripArtifactBlocks(entry.content).trim()
+        return cleaned || null
       }
     }
     return null
@@ -1408,6 +1444,7 @@ export default function ProjectsPage() {
                             <>
                               {messages.map((message) => {
                                 const isUser = message.source === 'user'
+                                const visibleMessageContent = isUser ? message.content : stripArtifactBlocks(message.content)
                                 const attachTrace = !isUser
                                   && message.id === latestAssistantMessageId
                                   && !isSending
@@ -1431,7 +1468,9 @@ export default function ProjectsPage() {
                                         </span>
                                       </div>
                                       {attachTrace ? renderTraceSection(false) : null}
-                                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                                      {visibleMessageContent ? (
+                                        <div className="whitespace-pre-wrap text-sm leading-relaxed">{visibleMessageContent}</div>
+                                      ) : null}
                                       {!isUser ? (
                                         <div className="mt-3 flex flex-wrap gap-2">
                                           {messageArtifacts.length === 0 ? (
@@ -1552,7 +1591,9 @@ export default function ProjectsPage() {
                                 </div>
                               </div>
                               <div className="flex-1 overflow-auto p-4">
-                                {activeArtifact.artifactType === 'json' ? (
+                                {activeArtifact.artifactType === 'chart' ? (
+                                  <ChartRenderer artifact={activeArtifact} />
+                                ) : activeArtifact.artifactType === 'json' ? (
                                   <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed">{activeArtifact.content}</pre>
                                 ) : activeArtifact.artifactType === 'diff' ? (
                                   <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed">{activeArtifact.content}</pre>
